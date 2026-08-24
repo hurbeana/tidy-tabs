@@ -1,6 +1,6 @@
 {
   "name": "tidy-tabs",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "private": true,
   "type": "module",
   "description": "An AI tab grouper for Chrome and Firefox that runs fully on your own computer",
