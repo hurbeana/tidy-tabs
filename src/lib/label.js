@@ -6,7 +6,13 @@ import { siteName } from "./rules.js";
 
 export const tidyName = (name) => String(name ?? "").replace(/["'`]/g, "").replace(/[^\p{L}\p{N} &+/-]/gu, " ").trim().replace(/\s+/g, " ").split(" ").slice(0, 3).join(" ").slice(0, 24).replace(/^./, (c) => c.toUpperCase());
 
-const describe = (tab, i) => `${i}. ${tab.title} — ${tab.host}${tab.text ? ` — ${tab.text}` : ""}`;
+// What the model gets to see. The web address is always there; it is free and it helps.
+// A tab with no page text keeps its title, so nothing is ever left unlabelled.
+const parts = (tab, readMode) => [readMode === "content" && tab.text ? null : tab.title, tab.host, tab.text].filter(Boolean);
+
+const describe = (tab, i, readMode) => `${i}. ${parts(tab, readMode).join(" — ")}`;
+
+const textOf = (tab, readMode) => parts(tab, readMode).join(" ").slice(0, 500);
 
 const promptFor = (tabs, settings, openGroups) => [
   "Put each tab in a topic group.",
@@ -15,7 +21,7 @@ const promptFor = (tabs, settings, openGroups) => [
   settings.categoryMode === "fixed" ? "Use no other names." : "If none of them fits, write your own name of one or two words.",
   'Answer with a JSON array. One item per tab, like {"i": 0, "c": "Group name"}. Write nothing else.',
   "",
-  ...tabs.map(describe)
+  ...tabs.map((tab, i) => describe(tab, i, settings.readMode))
 ].filter(Boolean).join("\n");
 
 const schemaFor = (labels) => ({ type: "array", items: { type: "object", properties: { i: { type: "integer" }, c: labels ? { type: "string", enum: labels } : { type: "string" } }, required: ["i", "c"] } });
@@ -43,7 +49,7 @@ const byGenerate = async (tabs, settings, openGroups, useBuiltin) => {
 const byZeroShot = async (tabs, settings, openGroups) => {
   const labels = [...new Set([...(settings.reuseExisting ? openGroups : []), ...settings.categories])].slice(0, 40);
   if (!labels.length) return new Array(tabs.length).fill(null);
-  const texts = tabs.map((t) => `${t.title} ${t.host} ${t.text ?? ""}`.slice(0, 300));
+  const texts = tabs.map((t) => textOf(t, settings.readMode));
   const results = [].concat(...(await Promise.all(chunks(texts, settings.batchSize).map((c) => run(modelSpec(settings), "zero-shot-classification", [c, labels], { multi_label: false })))));
   return results.map((r) => (r.scores[0] >= settings.confidence / 100 ? tidyName(r.labels[0]) : null));
 };
@@ -59,7 +65,7 @@ const commonWord = (titles) => { const count = new Map(); titles.flatMap((t) => 
 const byEmbedding = async (tabs, settings, openGroups) => {
   const spec = modelSpec(settings);
   const labels = [...new Set([...(settings.reuseExisting ? openGroups : []), ...(settings.categoryMode === "free" ? [] : settings.categories)])];
-  const texts = tabs.map((t) => `${t.title} ${t.host} ${t.text ?? ""}`.slice(0, 300));
+  const texts = tabs.map((t) => textOf(t, settings.readMode));
   const vectors = await run(spec, "feature-extraction", [[...labels, ...texts]], { pooling: "mean", normalize: true });
   const labelVectors = vectors.slice(0, labels.length);
   const tabVectors = vectors.slice(labels.length);

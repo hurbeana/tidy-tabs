@@ -22,7 +22,7 @@ const mayReadPages = async () => api.permissions.contains({ origins: ["<all_urls
 
 const pickTabs = (tabs, settings) => tabs.map(asTab).filter((t) => readable(t) && !(settings.skipPinned && t.pinned) && (settings.regroupExisting || t.groupId === NONE) && !isSkipped(t, settings.skipList));
 
-const addText = async (tabs, settings) => { if (!settings.readPageText || !(await mayReadPages())) return tabs; const texts = await Promise.all(tabs.map((t) => pageText(t.id, settings.pageTextChars))); return tabs.map((t, i) => ({ ...t, text: texts[i] })); };
+const addText = async (tabs, settings) => { if (settings.readMode === "title" || !(await mayReadPages())) return tabs; const texts = await Promise.all(tabs.map((t) => pageText(t.id, settings.pageTextChars))); return tabs.map((t, i) => ({ ...t, text: texts[i] })); };
 
 const decide = async (tabs, settings, openGroups) => {
   const named = tabs.map((t) => ruleCategory(t, settings.rules));

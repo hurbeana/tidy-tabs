@@ -103,4 +103,42 @@ await check("leaves groups you made yourself alone", async () => {
 });
 
 
+
+const promptSeen = async (settings, setup) => {
+  let seen = "";
+  load(setup);
+  globalThis.LanguageModel = fakeLanguageModel((prompt) => { seen = prompt; return answerWith({})(prompt); });
+  await groupWindow(1, { ...DEFAULTS, model: "builtin", ...settings });
+  return seen;
+};
+
+await check("reading titles only leaves the page alone", async () => {
+  const prompt = await promptSeen({ readMode: "title" }, { tabs: TABS, pageText: "a long article about headphones", allowPageReading: true });
+  assert.match(prompt, /Sony WH-1000XM6 review/);
+  assert.doesNotMatch(prompt, /long article/);
+});
+
+await check("reading the page only leaves the title out", async () => {
+  const prompt = await promptSeen({ readMode: "content" }, { tabs: TABS, pageText: "a long article about headphones", allowPageReading: true });
+  assert.match(prompt, /long article/);
+  assert.doesNotMatch(prompt, /Sony WH-1000XM6 review/);
+});
+
+await check("reading both sends the title and the page", async () => {
+  const prompt = await promptSeen({ readMode: "both" }, { tabs: TABS, pageText: "a long article about headphones", allowPageReading: true });
+  assert.match(prompt, /Sony WH-1000XM6 review/);
+  assert.match(prompt, /long article/);
+});
+
+await check("a page it cannot read keeps its title", async () => {
+  const prompt = await promptSeen({ readMode: "content" }, { tabs: TABS, pageText: "", allowPageReading: true });
+  assert.match(prompt, /Sony WH-1000XM6 review/, "with no page text the title must come back");
+});
+
+await check("without permission it never asks a page for text", async () => {
+  const prompt = await promptSeen({ readMode: "both" }, { tabs: TABS, pageText: "secret page text", allowPageReading: false });
+  assert.doesNotMatch(prompt, /secret page text/);
+  assert.match(prompt, /Sony WH-1000XM6 review/);
+});
+
 console.log(`\n${passed} check(s) passed.`);

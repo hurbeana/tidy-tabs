@@ -72,12 +72,18 @@
 </fieldset>
 
 <fieldset>
-  <legend>Should it read the page as well as the title?</legend>
-  <p>Titles alone are usually enough. Reading the page text gives better groups but needs your permission to look at every site.</p>
-  <label class="row"><input type="checkbox" data-key="readPageText"> Read a little text from each page</label>
-  <label class="stack"><span>How many characters to read</span><input type="number" min="100" max="4000" step="100" data-key="pageTextChars"></label>
+  <legend>What should the model read about each tab?</legend>
+  <p>Titles are fastest and are usually enough. Reading the page as well gives better groups, but it takes a moment longer and needs your permission to look at every site.</p>
+  <label class="stack"><span>The model reads</span>
+    <select data-key="readMode">
+      <option value="title">The title and the web address</option>
+      <option value="content">The web address and text from the page</option>
+      <option value="both">The title, the web address, and text from the page</option>
+    </select></label>
+  <label class="stack"><span>How many characters to read from each page</span><input type="number" min="100" max="4000" step="100" data-key="pageTextChars"></label>
   <div class="buttons"><button id="allow">Give permission to read pages</button></div>
   <p class="muted" id="permState"></p>
+  <p class="muted">A tab whose page cannot be read keeps its title, so it still gets a group.</p>
 </fieldset>
 
 <fieldset>

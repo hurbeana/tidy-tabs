@@ -1,7 +1,11 @@
 # Tidy Tabs — an AI tab grouper that stays on your computer
 
-Tidy Tabs sorts your open tabs into named groups. It reads the titles of your
-tabs, works out what each one is about, and puts the related ones together.
+Tidy Tabs sorts your open tabs into named groups. It works out what each tab is
+about and puts the related ones together.
+
+You choose what it reads: just the title, just the text on the page, or both.
+Titles alone are fast and usually enough. Adding the page text gives better
+groups and takes a little longer.
 
 A language model does the thinking. That model runs on your own computer. Your
 tabs are never sent anywhere.
@@ -82,8 +86,10 @@ The settings page holds every option. The main ones are:
 - **Your own rules.** Write `github.com = Code` and every GitHub tab lands in
   **Code**. Wrap a rule in slashes, like `/invoice|receipt/ = Money`, to match
   a pattern.
-- **Page text.** Off by default. Turn it on and Tidy Tabs reads a little text
-  from each page for better groups. It asks for permission first.
+- **What it reads.** The title and web address, the page text and web address,
+  or all three. Titles only is the starting choice, because it is fastest and
+  needs no extra permission. The other two ask your permission to look at
+  pages. A page that cannot be read keeps its title, so no tab is left out.
 
 You can copy your settings out as text and paste them back in later.
 

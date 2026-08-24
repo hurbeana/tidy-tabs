@@ -20,7 +20,7 @@ export const DEFAULTS = {
   colors: {},
   collapseNewGroups: false,
   sortInGroups: false,
-  readPageText: false,
+  readMode: "title",
   pageTextChars: 600,
   model: "builtin",
   fallbackModel: "tiny",

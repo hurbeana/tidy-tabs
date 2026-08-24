@@ -4,10 +4,11 @@ Short answer: it keeps everything on your computer.
 
 ## What it reads
 
-- The title and address of your open tabs. It needs these to work out what a
-  tab is about.
-- A little text from the page, but only if you switch that on. It is off when
-  you install the add-on, and your browser asks your permission first.
+- The address of your open tabs. It always needs this.
+- The title of your open tabs, unless you set it to read page text only.
+- A short piece of text from the page, but only if you choose one of the two
+  settings that ask for it. When you install the add-on it reads titles only,
+  and your browser asks your permission before it reads any page.
 
 ## Where that goes
 
@@ -42,9 +43,9 @@ You can delete downloaded models at any time from the settings page.
 | `tabGroups` | To make and name the groups. |
 | `storage` | To remember your settings. |
 | `alarms` | To tidy on a timer. |
-| `scripting` | To read page text, only when you turn that on. |
+| `scripting` | To read page text, only when you choose a setting that needs it. |
 | `offscreen` | Chrome needs a hidden page to run a model. |
-| Access to all sites | Only asked for when you turn on page reading. |
+| Access to all sites | Only asked for when you choose to read page text. |
 | `trialML` | Firefox needs this before it may run a local model. |
 
 ## Questions
