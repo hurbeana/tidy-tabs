@@ -7,6 +7,7 @@ import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
+import { READER } from "../src/lib/models.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -14,13 +15,17 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 // that can never happen. So the copy under test asks for those hosts up front instead.
 // The shipped add-on still asks only when you pick a model, which is checked below.
 const HOSTS = ["https://*.huggingface.co/*", "https://*.hf.co/*"];
+// Reading a page is allowed only when every address is allowed, because that is what
+// the add-on asks for. Granting just the test server would leave the reading turned off
+// and these checks would quietly pass on the old behaviour.
+const TEST_PAGES = "<all_urls>";
 const testCopy = () => {
   const dir = `${root}.tools/ext`;
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   cpSync(`${root}src`, dir, { recursive: true });
   const manifest = JSON.parse(readFileSync(`${dir}/manifest.json`, "utf8"));
-  manifest.host_permissions = HOSTS;
+  manifest.host_permissions = [...HOSTS, TEST_PAGES];
   manifest.optional_host_permissions = manifest.optional_host_permissions.filter((h) => !HOSTS.includes(h));
   writeFileSync(`${dir}/manifest.json`, JSON.stringify(manifest, null, 2));
   return dir;
@@ -59,17 +64,24 @@ const listen = async (target) => {
 };
 
 // Some pages to sort. They must be real web pages, so a small server hands them out.
+// Each page carries real wording of its own. Pages that all read alike would make the
+// page-reading check meaningless, because every tab would come back saying the same thing.
 const PAGES = [
-  ["/pull/1", "Pull request 1 · tidy/tabs"], ["/pull/2", "Pull request 2 · tidy/tabs"],
-  ["/docs/array", "Array.prototype.map — reference"], ["/docs/string", "String.prototype.trim — reference"],
-  ["/shop/a", "Noise cancelling headphones, best price"], ["/shop/b", "Headphone reviews for 2026"]
+  ["/pull/1", "Pull request 1 · tidy/tabs", "Code review discussion on a pull request, with commits, diffs and review comments from other developers."],
+  ["/pull/2", "Pull request 2 · tidy/tabs", "Another open pull request awaiting code review, showing changed files and continuous integration results."],
+  ["/docs/array", "Array.prototype.map — reference", "Programming language reference documentation for the map method, with syntax, parameters and examples."],
+  ["/docs/string", "String.prototype.trim — reference", "Programming language reference documentation for the trim method, describing whitespace removal with examples."],
+  ["/shop/a", "Noise cancelling headphones, best price", "Online shop listing for over-ear noise cancelling headphones, with prices, delivery options and customer ratings."],
+  ["/shop/b", "Headphone reviews for 2026", "Buying guide comparing noise cancelling headphones, with sound quality scores, battery life and price comparisons."]
 ];
 
 const serve = () => new Promise((done) => {
   const server = createServer((req, res) => {
-    const title = PAGES.find(([path]) => path === req.url)?.[1] ?? "Nothing here";
+    const page = PAGES.find(([path]) => path === req.url);
+    const title = page?.[1] ?? "Nothing here";
+    const about = page?.[2] ?? "A page for the checks.";
     res.writeHead(200, { "content-type": "text/html" });
-    res.end(`<!doctype html><meta charset="utf-8"><title>${title}</title><h1>${title}</h1><p>A page for the checks.</p>`);
+    res.end(`<!doctype html><meta charset="utf-8"><title>${title}</title><meta name="description" content="${about}"><h1>${title}</h1><p>${about}</p>`);
   });
   server.listen(0, "127.0.0.1", () => done({ server, base: `http://127.0.0.1:${server.address().port}` }));
 });
@@ -150,12 +162,12 @@ try {
     await options.click("#checkup");
     await until(async () => (await textOf(options, "progressLine")).includes("Runtime"), 20000);
     const setup = await textOf(options, "progressLine");
-    must("a model is really loaded afterwards", /Loaded now:.*MiniLM/i.test(setup), setup);
+    must("a model is really loaded afterwards", setup.includes(`Loaded now:`) && setup.includes(READER.id), setup);
     must("no backend was missing", !said.some((l) => /no available backend/i.test(l)), said.filter((l) => /no available backend/i.test(l)).join("\n        "));
   }
 
   console.log("\nSorting real tabs with the real model");
-  await setSettings(options, { enabled: true, trigger: "manual", readPages: false, naming: "auto", remember: true });
+  await setSettings(options, { enabled: true, trigger: "manual", readPages: true, naming: "auto", remember: true });
   for (const [path] of PAGES) await (await browser.newPage()).goto(base + path, { waitUntil: "domcontentloaded" });
   await wait(500);
 
@@ -166,16 +178,20 @@ try {
   const said_it = await textOf(popup, "result");
   console.log(`  the popup says: ${said_it}`);
   must("the popup explains what happened", said_it.length > 10 && !said_it.includes("Nothing happened"), said_it);
+  // Reading the pages is what makes the grouping good, so a round that quietly skipped it
+  // would still pass everything below while being the old, worse add-on.
+  must("the pages were really read", /\d+ pages? (was|were) read/.test(said_it), said_it);
 
   const groups = await options.evaluate(() => chrome.tabGroups.query({}));
   console.log(`  groups now open: ${groups.map((g) => g.title).join(", ") || "none"}`);
   must("real tab groups were made", groups.length > 0, said_it);
   must("the groups have sensible names", groups.every((g) => g.title && !/^[\d\s]+$/.test(g.title)), `got: ${groups.map((g) => g.title).join(", ")}`);
-  // The six pages are three pairs on three subjects, so a model that is really reading
-  // them must find more than one group. One group would mean it grouped by nothing.
-  must("pages on different subjects land in different groups", groups.length >= 2, `got ${groups.length}: ${groups.map((g) => g.title).join(", ")}`);
+  // The six pages are three clean pairs on three subjects: pull requests, language
+  // reference, and headphones. Anything less than three groups means a pair that plainly
+  // belongs together was missed.
+  must("all three subjects became their own group", groups.length >= 3, `got ${groups.length}: ${groups.map((g) => g.title).join(", ")}`);
   const inGroups = await options.evaluate(() => chrome.tabs.query({}).then((all) => all.filter((t) => t.groupId !== -1).length));
-  must("the tabs really moved into them", inGroups >= 4, `${inGroups} tabs are in a group`);
+  must("every one of the six tabs was placed", inGroups >= 6, `${inGroups} tabs are in a group`);
 
   console.log("\nWhat it learned");
   // The worker keeps the last round, so this reads what actually happened rather than

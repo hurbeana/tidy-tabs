@@ -1,0 +1,437 @@
+{
+  "note": "The owner's own window, transcribed from two screenshots of what v2.0.0 produced. 'want' is the group a person would make, and an empty one means the tab belongs in no group. 'got' is what v2.0.0 actually did, kept so a change can be judged against the real complaint.",
+  "tabs": [
+    {
+      "title": "Noita But Starting At A Random Spawn #11",
+      "url": "https://www.youtube.com/watch?v=aaa111",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Let's play video of the roguelike game Noita, starting each run at a random spawn point in the mines.",
+      "language": "en"
+    },
+    {
+      "title": "The Ultimate Noita New Player's Guide - YouTube",
+      "url": "https://www.youtube.com/watch?v=bbb222",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Beginner tutorial video for the game Noita, covering wands, spells, perks and the holy mountain.",
+      "language": "en"
+    },
+    {
+      "title": "I absolutely love this game... BUT RANDOM SPAWN : r/noita",
+      "url": "https://www.reddit.com/r/noita/comments/xyz/i_absolutely_love_this_game/",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Reddit discussion on the noita subreddit about random spawn runs and difficulty in the game Noita.",
+      "language": "en"
+    },
+    {
+      "title": "Advanced Guide To Wand Mechanics - Noita Wiki",
+      "url": "https://noita.wiki.gg/wiki/Advanced_Guide_To_Wand_Mechanics",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Wiki page explaining wand mechanics in Noita: cast delay, recharge time, mana and spell wrapping.",
+      "language": "en"
+    },
+    {
+      "title": "Noita Music Note Damage Explained - YouTube",
+      "url": "https://www.youtube.com/watch?v=ccc333",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Video explaining the music note damage mechanic and secret sound puzzles in Noita.",
+      "language": "en"
+    },
+    {
+      "title": "Add Trigger - The Noita Wiki",
+      "url": "https://noita.wiki.gg/wiki/Add_Trigger",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Noita wiki page for the Add Trigger spell modifier, its mana cost and how it chains spells.",
+      "language": "en"
+    },
+    {
+      "title": "Touch of Gold - The Noita Wiki",
+      "url": "https://noita.wiki.gg/wiki/Touch_of_Gold",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Noita wiki page for the Touch of Gold spell, which turns materials into gold.",
+      "language": "en"
+    },
+    {
+      "title": "The End of Everything Quest - The Noita Wiki",
+      "url": "https://noita.wiki.gg/wiki/The_End_of_Everything_Quest",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Noita wiki page describing the End of Everything quest and the steps to complete it.",
+      "language": "en"
+    },
+    {
+      "title": "The Cessation Quest - The Noita Wiki",
+      "url": "https://noita.wiki.gg/wiki/The_Cessation_Quest",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Noita wiki page describing the Cessation quest, one of the game's secret endings.",
+      "language": "en"
+    },
+    {
+      "title": "The Dark Crystal Key Quest - The Noita Wiki",
+      "url": "https://noita.wiki.gg/wiki/The_Dark_Crystal_Key_Quest",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Noita wiki page for the Dark Crystal Key quest and where the key is hidden.",
+      "language": "en"
+    },
+    {
+      "title": "Guide: Infinite Lifetime Spells - The Noita Wiki",
+      "url": "https://noita.wiki.gg/wiki/Guide:_Infinite_Lifetime_Spells",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Noita wiki guide on building wands with infinite lifetime projectiles.",
+      "language": "en"
+    },
+    {
+      "title": "Noita stutters and I can't figure out why : r/noita",
+      "url": "https://www.reddit.com/r/noita/comments/abc/noita_stutters/",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Reddit thread on r/noita about frame stutter and performance problems running the game.",
+      "language": "en"
+    },
+    {
+      "title": "Lymm's Telescope",
+      "url": "https://lymm.pw/telescope/",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Interactive seed search tool for the game Noita, letting you scan world seeds for wands and spells.",
+      "language": "en"
+    },
+    {
+      "title": "Noita Map",
+      "url": "https://dwarfx.github.io/noitamap/",
+      "want": "Noita",
+      "got": "Random quest",
+      "summary": "Interactive scrollable map of the game Noita's world, with biomes and points of interest.",
+      "language": "en"
+    },
+    {
+      "title": "Elon Musk is STILL Racist - YouTube",
+      "url": "https://www.youtube.com/watch?v=ddd444",
+      "want": "",
+      "got": "Random quest",
+      "summary": "Opinion video about Elon Musk and accusations of racism, politics and social media commentary.",
+      "language": "en"
+    },
+    {
+      "title": "YouTube",
+      "url": "https://www.youtube.com/",
+      "want": "",
+      "got": "Episode aniworld",
+      "summary": "The YouTube home page, showing recommended videos.",
+      "language": "en"
+    },
+    {
+      "title": "Episode 32 Staffel 32 von Detektiv Conan | AniWorld.to",
+      "url": "https://aniworld.to/anime/stream/detektiv-conan/staffel-32/episode-32",
+      "want": "Detective Conan",
+      "got": "Episode aniworld",
+      "summary": "Streaming-Seite für Detektiv Conan Staffel 32 Folge 32, Anime mit deutschen Untertiteln.",
+      "language": "de"
+    },
+    {
+      "title": "Episode 35 Staffel 32 von Detektiv Conan | AniWorld.to",
+      "url": "https://aniworld.to/anime/stream/detektiv-conan/staffel-32/episode-35",
+      "want": "Detective Conan",
+      "got": "Episode aniworld",
+      "summary": "Streaming-Seite für Detektiv Conan Staffel 32 Folge 35, Anime mit deutschen Untertiteln.",
+      "language": "de"
+    },
+    {
+      "title": "Episode 1 Staffel 1 von Magic Kaito: Kid the Phantom Thief | AniWorld.to",
+      "url": "https://aniworld.to/anime/stream/magic-kaito-kid-the-phantom-thief/staffel-1/episode-1",
+      "want": "Detective Conan",
+      "got": "Episode aniworld",
+      "summary": "Streaming-Seite für Magic Kaito: Kid the Phantom Thief, ein Anime-Ableger von Detektiv Conan.",
+      "language": "de"
+    },
+    {
+      "title": "detective conan episode 1198 gogoanime",
+      "url": "https://www.qwant.com/?q=detective%20conan%20episode%201198%20gogoanime",
+      "want": "Detective Conan",
+      "got": "Episode aniworld",
+      "summary": "Search results for streaming Detective Conan episode 1198 anime online.",
+      "language": "en"
+    },
+    {
+      "title": "Meitantei Conan | Anime-Dunya English",
+      "url": "https://anime-dunya.com/meitantei-conan",
+      "want": "Detective Conan",
+      "got": "Episode aniworld",
+      "summary": "Anime database entry for Meitantei Conan, also known as Detective Conan, with episode list.",
+      "language": "en"
+    },
+    {
+      "title": "Dev Deletes 3 Months of Work, Blames Code Assistant - YouTube",
+      "url": "https://www.youtube.com/watch?v=eee555",
+      "want": "",
+      "got": "Velornlabs generative",
+      "summary": "Video about a developer who lost three months of work and blamed an AI coding assistant.",
+      "language": "en"
+    },
+    {
+      "title": "VelornLabs/velorn: AI-native video editing built for the web",
+      "url": "https://github.com/VelornLabs/velorn",
+      "want": "Code projects",
+      "got": "Velornlabs generative",
+      "summary": "GitHub repository for Velorn, an open source AI-native video editing tool for the web.",
+      "language": "en"
+    },
+    {
+      "title": "MemPalace/mempalace: The best-benchmarked memory layer",
+      "url": "https://github.com/MemPalace/mempalace",
+      "want": "Code projects",
+      "got": "Velornlabs generative",
+      "summary": "GitHub repository for MemPalace, a benchmarked memory layer library for AI agents.",
+      "language": "en"
+    },
+    {
+      "title": "Medizinische Influencer*innen: Diagnose Selbstdarstellung - YouTube",
+      "url": "https://www.youtube.com/watch?v=fff666",
+      "want": "",
+      "got": "Velornlabs generative",
+      "summary": "Deutsche Dokumentation über medizinische Influencerinnen in sozialen Medien und ihre Selbstdarstellung.",
+      "language": "de"
+    },
+    {
+      "title": "far far west vault - Google Search",
+      "url": "https://www.google.com/search?q=far+far+west+vault",
+      "want": "Far Far West",
+      "got": "Far west",
+      "summary": "Search results about vault locations in the video game Far Far West.",
+      "language": "en"
+    },
+    {
+      "title": "How To Find All Canyon Medallions In Far Far West",
+      "url": "https://gamerant.com/far-far-west-canyon-medallions-locations/",
+      "want": "Far Far West",
+      "got": "Far west",
+      "summary": "Game guide listing every canyon medallion collectible location in Far Far West.",
+      "language": "en"
+    },
+    {
+      "title": "long ranger far far west points",
+      "url": "https://www.qwant.com/?q=long%20ranger%20far%20far%20west%20points",
+      "want": "Far Far West",
+      "got": "Far west",
+      "summary": "Search results about Long Ranger skill points and builds in the game Far Far West.",
+      "language": "en"
+    },
+    {
+      "title": "Da mage - Far Far West Long Ranger Build",
+      "url": "https://damage.gg/far-far-west/long-ranger-build",
+      "want": "Far Far West",
+      "got": "Far west",
+      "summary": "Character build guide for the Long Ranger class in the game Far Far West.",
+      "language": "en"
+    },
+    {
+      "title": "VictoriaLogs: LogsQL",
+      "url": "https://docs.victoriametrics.com/victorialogs/logsql/",
+      "want": "",
+      "got": "Far west",
+      "summary": "Documentation for LogsQL, the query language of the VictoriaLogs log database.",
+      "language": "en"
+    },
+    {
+      "title": "ubisoft stock - Qwant Search",
+      "url": "https://www.qwant.com/?q=ubisoft%20stock",
+      "want": "Ubisoft stock",
+      "got": "Ubisoft stock",
+      "summary": "Search results for the Ubisoft share price and stock market news.",
+      "language": "en"
+    },
+    {
+      "title": "Ubisoft Entertainment SA (UBI.PA) Stock Price",
+      "url": "https://finance.yahoo.com/quote/UBI.PA/",
+      "want": "Ubisoft stock",
+      "got": "Ubisoft stock",
+      "summary": "Share price quote, chart and financial figures for Ubisoft Entertainment on the Paris exchange.",
+      "language": "en"
+    },
+    {
+      "title": "Detektiv Conan S32E32 German Subbed",
+      "url": "https://www.qwant.com/?q=detektiv%20conan%20s32e32%20german%20subbed",
+      "want": "Detective Conan",
+      "got": "Wischmoprollenfehler",
+      "summary": "Suchergebnisse zum Ansehen von Detektiv Conan Staffel 32 Folge 32 mit deutschen Untertiteln.",
+      "language": "de"
+    },
+    {
+      "title": "Mova Z60 Wischmoprollenfehler beheben",
+      "url": "https://www.mova.com/support/z60-wischmopprollen-fehler",
+      "want": "",
+      "got": "Wischmoprollenfehler",
+      "summary": "Hilfeseite zum Beheben eines Fehlers der Wischmopprollen beim Mova Z60 Saugroboter.",
+      "language": "de"
+    },
+    {
+      "title": "19. Bezirk: Döbling - Stadt Wien",
+      "url": "https://www.wien.gv.at/bezirke/doebling/",
+      "want": "",
+      "got": "Wischmoprollenfehler",
+      "summary": "Seite der Stadt Wien über Döbling, den 19. Gemeindebezirk, mit Bezirksvorstehung, Geschichte und Angeboten im Bezirk.",
+      "language": "de"
+    },
+    {
+      "title": "Stream Archives - Amalgam Fansubs",
+      "url": "https://amalgamfansubs.com/archives",
+      "want": "Detective Conan",
+      "got": "Archives networking",
+      "summary": "Archive of fansubbed anime streams and subtitle releases from Amalgam Fansubs.",
+      "language": "en"
+    },
+    {
+      "title": "probable-basilisk/pollnet: Polling-based C api for networking",
+      "url": "https://github.com/probable-basilisk/pollnet",
+      "want": "Code projects",
+      "got": "Archives networking",
+      "summary": "GitHub repository for pollnet, a small polling based C networking library.",
+      "language": "en"
+    },
+    {
+      "title": "Kawasaki Z Motorrad gebraucht oder neu kaufen",
+      "url": "https://www.willhaben.at/iad/motorrad/kawasaki-z",
+      "want": "Motorbikes",
+      "got": "Motorrad hornet",
+      "summary": "Kleinanzeigen für gebrauchte und neue Kawasaki Z Motorräder mit Preisen, Bildern und Angaben zum Zustand.",
+      "language": "de"
+    },
+    {
+      "title": "Versicherungsangebot für Honda Hornet Motorrad",
+      "url": "https://www.mova.at/versicherung/motorrad/honda-hornet",
+      "want": "Motorbikes",
+      "got": "Motorrad hornet",
+      "summary": "Angebot für eine Motorradversicherung für die Honda Hornet, mit Beitrag, Leistungen und Selbstbeteiligung.",
+      "language": "de"
+    },
+    {
+      "title": "Ersatzteile und Zubehör für Honda CB 750 Hornet",
+      "url": "https://www.louis.at/honda-cb-750-hornet/ersatzteile",
+      "want": "Motorbikes",
+      "got": "Motorrad hornet",
+      "summary": "Shop für Ersatzteile und Zubehör für das Motorrad Honda CB 750 Hornet, mit Preisen und Lieferzeit.",
+      "language": "de"
+    },
+    {
+      "title": "EUROTRUCK SEND driver",
+      "url": "https://www.qwant.com/?q=eurotruck%20send%20driver",
+      "want": "Euro Truck",
+      "got": "Motorrad hornet",
+      "summary": "Search results about sending a driver in the game Euro Truck Simulator 2.",
+      "language": "en"
+    },
+    {
+      "title": "How to properly set up employees? :: Euro Truck Simulator 2",
+      "url": "https://steamcommunity.com/app/227300/discussions/0/employees/",
+      "want": "Euro Truck",
+      "got": "Employees discussions",
+      "summary": "Steam community discussion about hiring and managing drivers in Euro Truck Simulator 2.",
+      "language": "en"
+    },
+    {
+      "title": "Getting Started | MemPalace",
+      "url": "https://docs.mempalace.dev/getting-started",
+      "want": "Code projects",
+      "got": "Employees discussions",
+      "summary": "Getting started documentation for the MemPalace memory layer library.",
+      "language": "en"
+    },
+    {
+      "title": "revolution idle singularity guide",
+      "url": "https://www.qwant.com/?q=revolution%20idle%20singularity%20guide",
+      "want": "Revolution Idle",
+      "got": "Revolution singularity",
+      "summary": "Search results for a singularity progression guide in the game Revolution Idle.",
+      "language": "en"
+    },
+    {
+      "title": "Guide:Singularity - Official Revolution Idle Wiki",
+      "url": "https://revolution-idle.fandom.com/wiki/Guide:Singularity",
+      "want": "Revolution Idle",
+      "got": "Revolution singularity",
+      "summary": "Wiki guide to the singularity mechanic in the incremental game Revolution Idle.",
+      "language": "en"
+    },
+    {
+      "title": "Rücksendezentrum",
+      "url": "https://www.amazon.de/gp/css/returns/homepage.html",
+      "want": "",
+      "got": "",
+      "summary": "Amazon Rücksendezentrum zum Zurücksenden einer bestellten Ware, mit Rücksendeetikett.",
+      "language": "de"
+    },
+    {
+      "title": "New chat - Claude",
+      "url": "https://claude.ai/new",
+      "want": "Claude",
+      "got": "Chat claudeai",
+      "summary": "The Claude AI assistant chat interface, ready for a new conversation.",
+      "language": "en"
+    },
+    {
+      "title": "ClaudeAI",
+      "url": "https://www.reddit.com/r/ClaudeAI/",
+      "want": "Claude",
+      "got": "Chat claudeai",
+      "summary": "The ClaudeAI subreddit, with discussion and news about the Claude AI assistant.",
+      "language": "en"
+    },
+    {
+      "title": "Noitool",
+      "url": "https://noitool.com/",
+      "want": "Noita",
+      "got": "",
+      "summary": "Collection of browser tools for the game Noita, including a wand simulator and seed search.",
+      "language": "en"
+    },
+    {
+      "title": "Computational indistinguishability - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Computational_indistinguishability",
+      "want": "Cryptography",
+      "got": "",
+      "summary": "Wikipedia article on computational indistinguishability, a concept in cryptography and complexity theory.",
+      "language": "en"
+    },
+    {
+      "title": "MIT 6.5620 · Foundations of Cryptography",
+      "url": "https://mit6875.github.io/",
+      "want": "Cryptography",
+      "got": "Cryptography",
+      "summary": "MIT course page for Foundations of Cryptography, with lecture notes and problem sets.",
+      "language": "en"
+    },
+    {
+      "title": "Encrypted Messaging and Ratcheting - The Journal",
+      "url": "https://blog.cryptographyengineering.com/encrypted-messaging-ratcheting/",
+      "want": "Cryptography",
+      "got": "Cryptography",
+      "summary": "Blog post explaining ratcheting key exchange in encrypted messaging protocols.",
+      "language": "en"
+    },
+    {
+      "title": "ASUS DisplayWidget Center | Monitor OSD",
+      "url": "https://www.asus.com/displaywidget-center/",
+      "want": "",
+      "got": "",
+      "summary": "Product page for ASUS DisplayWidget Center, software for adjusting monitor settings.",
+      "language": "en"
+    },
+    {
+      "title": "Mix-Studio/docs/technical-reference.md at main",
+      "url": "https://github.com/Mix-Studio/docs/blob/main/technical-reference.md",
+      "want": "Code projects",
+      "got": "Tabautopilot hurbeana",
+      "summary": "Technical reference documentation page in the Mix-Studio docs GitHub repository.",
+      "language": "en"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { makeBrowser, reset, state, fakeReader } from "./mock.mjs";
 
 globalThis.browser = globalThis.chrome = makeBrowser();
-const { groupWindow } = await import("../src/lib/group.js");
+const { groupWindow, howTabsAreRead } = await import("../src/lib/group.js");
 const { DEFAULTS } = await import("../src/lib/settings.js");
 const { builtinClose } = await import("../src/lib/builtin.js");
 const { readableUrl } = await import("../src/lib/summary.js");
@@ -99,7 +99,7 @@ await check("makes no more groups than you allow", async () => {
 await check("a tab rejoins a group it only remembers", async () => {
   load({ tabs: CODE_AND_SHOPPING, reply: fakeReader(themeOf) });
   await groupWindow(1, settings());
-  const learnt = await recall(DEFAULTS.readerModel || "Xenova/all-MiniLM-L6-v2");
+  const learnt = await recall(howTabsAreRead(settings()));
   assert.equal(learnt.length, 2, `expected 2 remembered groups, got ${learnt.length}`);
 
   // The same two shopping tabs come back in a window with nothing else in it.
@@ -132,17 +132,23 @@ await check("memory keeps only the most recent groups", async () => {
 
 // ---- Reading pages --------------------------------------------------------------------
 
-await check("pages are read only when titles were not enough", async () => {
-  load({ tabs: CODE_AND_SHOPPING, reply: fakeReader(themeOf), allowPageReading: true, pageText: "" });
+await check("no page is read when you have not allowed it", async () => {
+  load({ tabs: CODE_AND_SHOPPING, reply: fakeReader(themeOf), allowPageReading: false, pageText: "some words" });
   const report = await groupWindow(1, settings({ readPages: true }));
-  assert.equal(report.read, 0, "nothing was loose, so no page should have been read");
+  assert.equal(report.read, 0, "the page permission was not granted, so nothing should be read");
 });
 
-await check("a page summary can rescue tabs the titles could not place", async () => {
-  const loose = [tab("Untitled", "x"), tab("Untitled 2", "y")];
-  load({ tabs: [...CODE_AND_SHOPPING, ...loose], reply: fakeReader(themeOf), allowPageReading: true, pageText: "a page about themerescued things" });
+await check("every page is read, not only the tabs left over", async () => {
+  load({ tabs: CODE_AND_SHOPPING, reply: fakeReader(themeOf), allowPageReading: true, pageText: "a page about themecode things" });
   const report = await groupWindow(1, settings({ readPages: true }));
-  assert.equal(report.read, 2, `expected 2 pages read, got ${report.read}`);
+  assert.equal(report.read, CODE_AND_SHOPPING.length, `expected all ${CODE_AND_SHOPPING.length} pages read, got ${report.read}`);
+});
+
+await check("a page summary places tabs whose titles say nothing", async () => {
+  const loose = [tab("Untitled", "x"), tab("Untitled 2", "y")];
+  const blankTitle = (t) => t.title.startsWith("Untitled") ? "a page about themerescued things" : "";
+  load({ tabs: [...CODE_AND_SHOPPING, ...loose], reply: fakeReader(themeOf), allowPageReading: true, pageText: blankTitle });
+  const report = await groupWindow(1, settings({ readPages: true }));
   assert.equal(report.groups, 3, `expected 3 groups, got ${report.groups}: ${report.note}`);
 });
 
@@ -159,7 +165,7 @@ await check("says plainly when nothing belonged together", async () => {
   const report = await groupWindow(1, settings({ readPages: false }));
   assert.equal(report.groups, 0);
   assert.match(report.note, /nothing that belongs together/i);
-  assert.match(report.note, /Read a little of a page/);
+  assert.match(report.note, /Read a little of each page/);
 });
 
 await check("a round that breaks says why", async () => {

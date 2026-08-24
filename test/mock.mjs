@@ -25,7 +25,12 @@ export const makeBrowser = () => {
       onUpdated: { addListener: () => {} }
     },
     tabGroups: { query: async ({ windowId }) => state.groups.filter((g) => g.windowId === windowId), update: async (id, props) => Object.assign(state.groups.find((g) => g.id === id), props), TAB_GROUP_ID_NONE: -1 },
-    scripting: { executeScript: async () => [{ result: state.pageText }] },
+    scripting: {
+      executeScript: async ({ target }) => {
+        const tab = state.tabs.find((t) => t.id === target.tabId);
+        return [{ result: typeof state.pageText === "function" ? state.pageText(tab) : state.pageText }];
+      }
+    },
     permissions: { contains: async () => state.allowPageReading, request: async () => true },
     alarms: { create: async () => {}, clear: async () => {}, onAlarm: { addListener: () => {} } },
     action: { setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {} },

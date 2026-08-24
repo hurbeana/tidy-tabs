@@ -3,7 +3,13 @@ import { pipeline, env } from "./vendor/transformers.js";
 
 env.allowLocalModels = false;
 env.backends.onnx.wasm.wasmPaths = chrome.runtime.getURL("vendor/");
-env.backends.onnx.wasm.numThreads = 1;
+// A model runs many times faster on several threads than on one. Threads need the page
+// to be cross-origin isolated, which the manifest asks for. One core is left free so the
+// rest of the computer stays responsive while a round runs.
+const MOST_THREADS = 4;
+env.backends.onnx.wasm.numThreads = globalThis.crossOriginIsolated
+  ? Math.max(1, Math.min(MOST_THREADS, (navigator.hardwareConcurrency || 2) - 1))
+  : 1;
 
 const GPU_PATIENCE = 4000;
 

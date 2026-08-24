@@ -37,7 +37,7 @@ function whyNothingWasMade(report, settings) {
   const looked = `Read ${tabs(report.considered)} and found nothing that belongs together.`;
 
   if (report.considered < 2) return "There is only one tab to sort, and a group needs at least two.";
-  if (!settings.readPages) return `${looked} Turn on “Read a little of a page when its title is not enough” to give it more to go on.`;
+  if (!settings.readPages) return `${looked} Turn on “Read a little of each page, not just its title” to give it more to go on.`;
 
   return `${looked} They may simply be about different things. Open a few more tabs on a topic and try again.`;
 }

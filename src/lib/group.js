@@ -2,10 +2,11 @@
 import { api } from "./settings.js";
 import { collect, readPages } from "./tabs.js";
 import { applyAll, hasTabGroups, lineUp, openGroups } from "./apply.js";
-import { organise, FEWEST_TABS } from "./organise.js";
+import { organise } from "./organise.js";
 import { nameGroup } from "./naming.js";
 import { ruleCategory } from "./rules.js";
 import { middleOf, recall, remember } from "./memory.js";
+import { wordsFor } from "./summary.js";
 import { readerSpec } from "./models.js";
 import { run } from "./runtime.js";
 import { tidyName } from "./text.js";
@@ -30,24 +31,32 @@ function reader(settings) {
   };
 }
 
+// A memory only means something if the tabs were read the same way when it was written.
+// The model decides what the numbers mean, and so does whether the pages were read.
+export function howTabsAreRead(settings) {
+  return `${readerSpec(settings).id}${settings.readPages ? "+pages" : ""}`;
+}
+
 // Everything the round already knows: the groups open in this window, and the ones it
 // has seen before. A group that is open wins, because it is the one you can see.
+//
+// The tabs already in a group are read exactly like the loose ones, summary and all.
+// Comparing a tab that was read in full against a group described only by its titles
+// would be comparing two different things.
 async function whatIsKnown(windowId, inGroups, embed, settings) {
-  // The groups open in front of you are always read. Remembering is only about the
-  // groups that are no longer here.
   const live = [];
   for (const group of await openGroups(windowId)) {
     const theirTabs = inGroups.filter((tab) => tab.groupId === group.id);
     if (!group.title || !theirTabs.length) continue;
 
-    const vectors = await embed(theirTabs.map((tab) => `${tab.title} ${tab.url}`));
+    const vectors = await embed(theirTabs.map(wordsFor));
     live.push({ name: group.title, centre: middleOf(vectors) });
   }
 
   if (!settings.remember) return live;
 
   const open = new Set(live.map((group) => group.name.toLowerCase()));
-  const remembered = (await recall(readerSpec(settings).id)).filter((group) => !open.has(group.name.toLowerCase()));
+  const remembered = (await recall(howTabsAreRead(settings))).filter((group) => !open.has(group.name.toLowerCase()));
   return [...live, ...remembered];
 }
 
@@ -76,19 +85,6 @@ function fromRules(named) {
   return [...byName.values()].map((group) => ({ ...group, count: group.tabIds.length }));
 }
 
-// A tab nobody could place gets a second chance with its page read, but only if you
-// allowed that and only for the few tabs it would actually help.
-async function secondLook(loose, known, settings, embed) {
-  if (!settings.readPages || loose.length < FEWEST_TABS) return { groups: [], stillLoose: loose };
-
-  const withText = await readPages(loose);
-  if (withText.every((tab) => !tab.text)) return { groups: [], stillLoose: loose };
-
-  const { groups } = await organise({ tabs: withText, known, settings, embed, name: nameGroup });
-  const placed = new Set(groups.flatMap((group) => group.tabIds));
-  return { groups, stillLoose: loose.filter((tab) => !placed.has(tab.id)), read: withText.filter((tab) => tab.text).length };
-}
-
 const biggestFirst = (groups) => [...groups].sort((a, b) => b.count - a.count);
 
 export async function groupWindow(windowId, settings) {
@@ -109,18 +105,28 @@ export async function groupWindow(windowId, settings) {
   }
 }
 
-async function think(windowId, chosen, inGroups, blank, settings) {
+// Reading the page is the single biggest thing that helps. A title and an address say
+// little about "Noitool" or "Rücksendezentrum"; the page itself says plenty. Tabs that
+// cannot be read still work, they are simply judged on less.
+async function readEverything(tabs, inGroups, settings) {
+  if (!settings.readPages) return { tabs, inGroups };
+
+  const all = await readPages([...tabs, ...inGroups]);
+  return { tabs: all.slice(0, tabs.length), inGroups: all.slice(tabs.length) };
+}
+
+async function think(windowId, chosenTabs, groupedTabs, blank, settings) {
   const embed = reader(settings);
+  const { tabs: chosen, inGroups } = await readEverything(chosenTabs, groupedTabs, settings);
   const known = await whatIsKnown(windowId, inGroups, embed, settings);
 
   const { named, rest } = applyRules(chosen, settings);
-  const first = await organise({ tabs: rest, known, settings, embed, name: nameGroup });
+  const found = await organise({ tabs: rest, known, settings, embed, name: nameGroup });
 
-  const placed = new Set(first.groups.flatMap((group) => group.tabIds));
+  const placed = new Set(found.groups.flatMap((group) => group.tabIds));
   const loose = rest.filter((tab) => !placed.has(tab.id));
-  const second = await secondLook(loose, [...known, ...first.groups], settings, embed);
 
-  const everything = [...fromRules(named), ...first.groups, ...second.groups];
+  const everything = [...fromRules(named), ...found.groups];
   const keep = biggestFirst(everything).slice(0, settings.maxGroups);
   const trimmed = biggestFirst(everything).slice(settings.maxGroups);
 
@@ -130,10 +136,10 @@ async function think(windowId, chosen, inGroups, blank, settings) {
   return {
     ...blank,
     made,
-    loose: second.stillLoose.map((tab) => tab.title),
+    loose: loose.map((tab) => tab.title),
     trimmed: trimmed.map((group) => ({ name: group.name, count: group.count })),
     lined: !hasTabGroups(),
-    read: second.read ?? 0,
+    read: chosen.filter((tab) => tab.text).length,
     remembered,
     groups: made.length,
     tabs: made.reduce((sum, group) => sum + group.count, 0)
@@ -161,7 +167,7 @@ function keepInMind(groups, settings) {
 
   // If this cannot be saved the round says so, rather than quietly forgetting.
   const asMemories = worth.map((group) => ({ name: group.name, centre: group.centre, tabs: group.count }));
-  return remember(readerSpec(settings).id, asMemories, Date.now());
+  return remember(howTabsAreRead(settings), asMemories, Date.now());
 }
 
 const withNote = (report, settings) => ({ ...report, note: explain(report, settings) });

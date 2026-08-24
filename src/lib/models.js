@@ -9,9 +9,9 @@
 // If no model can answer, the name comes from the words those tabs share.
 
 export const READER = {
-  id: "Xenova/all-MiniLM-L6-v2",
+  id: "Xenova/gte-small",
   task: "feature-extraction",
-  mb: 25,
+  mb: 35,
   label: "Reads your tabs"
 };
 
@@ -19,10 +19,15 @@ export const READER = {
 // best names of the three. Brave and most other browsers do not have it.
 export const BUILTIN_NAMER = { builtin: true, label: "Your browser's own model", mb: 0 };
 
+// Naming is the one job a generator really does better, and it needs to be a real one.
+// Everything below about a thousand million weights was measured and found useless here:
+// SmolLM2-360M answered "Web development" to three different groups, and Qwen2.5-0.5B
+// replied "Hello! I'm Claude, an artificial intelligence designed to assist" when asked
+// to name a group. This one names a German group in German without being told to.
 export const NAMER = {
-  id: "HuggingFaceTB/SmolLM2-360M-Instruct",
+  id: "onnx-community/Qwen2.5-1.5B-Instruct",
   task: "text-generation",
-  mb: 380,
+  mb: 1790,
   label: "Writes group names"
 };
 

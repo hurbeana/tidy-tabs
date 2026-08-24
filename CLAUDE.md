@@ -25,8 +25,9 @@ learn.
 
 A round of tidying is one pipeline, and it has no thresholds anyone has to set.
 
-1. Read each tab: title, address, and a page summary if one was fetched.
-2. Turn each into numbers with a small model (`Xenova/all-MiniLM-L6-v2`, 25 MB).
+1. Read each tab: title, address, and a summary of the page itself. **Every tab, every
+   round.** Reading the page is worth more than any model upgrade, by a wide margin.
+2. Turn each into numbers with a small model (`Xenova/gte-small`, 35 MB).
 3. Measure how alike two ordinary tabs are **right now**, from the tabs themselves.
    Everything else is judged against that. This is why swapping the model needs no
    retuning: each model scores on its own scale, and the scale is measured, not assumed.
@@ -39,6 +40,18 @@ A round of tidying is one pipeline, and it has no thresholds anyone has to set.
 
 `src/lib/organise.js` is that list in code. `cluster.js` holds the maths, `memory.js` the
 store, `naming.js` the names, `summary.js` what a tab is read as.
+
+Measured on `test/models/realtabs.json`, which is the owner's own 54 tabs with the answers
+a person would give, and the nine tabs that belong in no group at all:
+
+| what the reader is given | F1 |
+| --- | --- |
+| Title only | 80% |
+| Title and address | 86% |
+| **Title, address and page summary** | **99%** |
+
+It degrades gently: with only a quarter of pages readable it still scores 88%, so sleeping
+tabs and PDFs cost a little, not everything.
 
 ## What runs where
 
@@ -81,10 +94,23 @@ check.
    to save a download.
 8. **The wasm runtime has no `GatherBlockQuantized`.** Every 4-bit export of a modern
    generator (Gemma 3, Qwen3) needs it, so they cannot load at all without a graphics
-   card. This is why there is no downloaded generator in the default path.
+   card. Some repositories ship `model_int8.onnx` beside `model_quantized.onnx`, and the
+   plain `int8` one usually loads where the other does not.
 9. **A small model cannot fill in a strict format.** Asking a 270M model for a JSON
    array of twelve labels returned the same sentence fourteen times. Asking for two
    words works. Keep every question to one short answer.
+10. **`int8` ruins a generator.** Llama-3.2-1B at `int8` named the Ubisoft group
+    "Stocks in the Air: A Tale of Two Cities" and another "assistantassistantassistant".
+    The same model at `q4` is fine. Quantise a reader hard; never do it to a generator.
+11. **The hidden page ran on one processor thread.** Threads need the page to be
+    cross-origin isolated, which the manifest now asks for with
+    `cross_origin_embedder_policy` and `cross_origin_opener_policy`. Without them a
+    generator looks impossibly slow and gets blamed for it.
+12. **A check that asks for too little hides a fault.** `test/browser.mjs` asked for
+    "two or more groups" from six tabs that make three clean pairs, so a missing group
+    passed. It also granted the test server alone, while `mayReadPages()` asks for
+    `<all_urls>`, so no page was ever read and the checks passed on the old behaviour.
+    Both are why the round now has to say how many pages it read, and the check reads it.
 
 ## The three groups of checks
 
@@ -119,11 +145,40 @@ a manifest key Mozilla now requires.
 actual grouping; it must run on the processor, so prefer an older int8 export over a
 4-bit one. `NAMER` only ever writes two words, and is optional.
 
-To judge a reader, do not guess. `test/models/tabset.json` holds 24 tabs in two languages
-with the answers a person would give; `test/models/dump-vectors.mjs` saves what a model makes
-of them and `test/models/score.mjs` grades it in a second, with no browser. MiniLM-L6 scores
-0.94 precision on that set. Including the address is worth about 0.15 of F1 over the
-title alone, and a same-site bonus was measured and made things worse.
+To judge a reader, do not guess. `test/models/realtabs.json` is the set that matters, and
+`test/models/bench.mjs` scores a strategy against it in seconds with no browser.
+
+What has already been measured, so nobody repeats it:
+
+- **Reading the page beats every model upgrade.** +13 points of F1. No model swap came
+  close to that.
+- Readers, on title and address alone: gte-small 86%, Qwen3-Embedding-0.6B 87% (629 MB),
+  bge-small 85%, all-mpnet-base 84%, embeddinggemma-300m 81%, MiniLM-L6 80%,
+  multilingual-e5-small 54%. gte-small is the best value by a distance.
+- **A generator must not place tabs.** With Llama-3.2-1B, which answers six sanity
+  questions correctly, three separate strategies were tried against an 89% embedding
+  control: plain yes/no scored 20%, calibrated yes/no 7%, and paired A-versus-B 71%.
+  Every one was worse than plain distance. Models at 0.5B are worse still: Qwen2.5-0.5B
+  says Paris is the capital of Japan and that a Lisbon flights tab belongs in a group
+  about Noita.
+- **A generator is good at naming.** Llama-3.2-1B turns "Random quest" into "Noita guides"
+  and "Wischmoprollenfehler" into "Detective Conan".
+- An existing group is best described by **the average of its tabs**: that rejoins loose
+  tabs at 100%. Its name alone manages 47%, and adding the name to the tabs takes in more
+  junk. Do not add it.
+- **One model cannot do both jobs.** A generator's own insides are not usable for
+  grouping: Llama-3.2-1B scored 1% of F1 that way, putting every tab in one group. A
+  generator has to be rebuilt as a reader first, which is what Qwen3-Embedding-0.6B is,
+  and that scored worse than gte-small at eighteen times the size.
+- **Naming without a model**: counting words beats the alternatives. Naming a group after
+  the tab nearest its middle gives "The Ultimate Noita" and "MIT 6.5620". Counting gives
+  "Noita wiki" and "Far west". Neither is as good as a generator.
+- **German and mixed languages work.** gte-small scores 100% on German tabs alone, 98% on
+  English alone, and 99% on the two mixed. It ties a German page about a subject to an
+  English one at 0.843, against 0.909 for two German pages, so one subject holds together
+  across languages. MiniLM manages only 0.453. Untested and harder: a German subject that
+  shares no name with its English counterpart. A model sold as multilingual is not the
+  answer, multilingual-e5-small scored 51% overall.
 
 ## Releasing
 

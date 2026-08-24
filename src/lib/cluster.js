@@ -34,6 +34,12 @@ const CLEARLY_RELATED = 4;
 // Half is a long way apart for two pieces of text a model has read.
 const NOTHING_TO_MEASURE = { ordinary: 0, spread: 0, related: 0.5, clearly: 0.5 };
 
+// When every tab in a window is about the same thing, the pairs all score alike, there is
+// almost no spread, and the bar works out higher than any pair can ever reach. That would
+// leave a window of plainly related tabs in no group at all. Two tabs that read the same
+// are related whatever the sums say, so the bar stops just short of a perfect match.
+const SAME_THING = 0.99;
+
 export function whatCountsAsRelated(vectors) {
   if (vectors.length < 3) return NOTHING_TO_MEASURE;
 
@@ -44,8 +50,8 @@ export function whatCountsAsRelated(vectors) {
   return {
     ordinary,
     spread,
-    related: ordinary + RELATED * spread,
-    clearly: ordinary + CLEARLY_RELATED * spread
+    related: Math.min(ordinary + RELATED * spread, SAME_THING),
+    clearly: Math.min(ordinary + CLEARLY_RELATED * spread, SAME_THING)
   };
 }
 

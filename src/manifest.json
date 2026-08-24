@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Tidy Tabs — AI Tab Grouper",
+  "name": "Tidy Tabs \u2014 AI Tab Grouper",
   "short_name": "Tidy Tabs",
   "version": "2.0.0",
   "description": "Groups your tabs by topic, automatically and fully on your device. Uses built-in AI when your browser has it.",
@@ -46,5 +46,11 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
-  "minimum_chrome_version": "128"
+  "minimum_chrome_version": "128",
+  "cross_origin_embedder_policy": {
+    "value": "require-corp"
+  },
+  "cross_origin_opener_policy": {
+    "value": "same-origin"
+  }
 }

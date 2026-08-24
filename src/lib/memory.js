@@ -35,18 +35,19 @@ export function middleOf(vectors) {
   return total.map((value) => value / length);
 }
 
-// A memory written by one model cannot be read by another, because their numbers
-// mean different things. The model's name is stored so a change simply starts over.
-export async function recall(modelId) {
+// A memory written one way cannot be read another way, because the numbers mean
+// different things. Both the model and whether pages were read decide that, so `how`
+// carries both and a change simply starts the memory over.
+export async function recall(how) {
   const saved = (await store.get(KEY))[KEY];
-  if (!saved || saved.model !== modelId) return [];
+  if (!saved || saved.model !== how) return [];
 
   return saved.groups.map((group) => ({ ...group, centre: unpack(group.centre) }));
 }
 
 // Newest first, so the oldest fall off the end when the store is full.
-export async function remember(modelId, groups, now) {
-  const older = await recall(modelId);
+export async function remember(how, groups, now) {
+  const older = await recall(how);
   const fresh = new Set(groups.map((group) => group.name.toLowerCase()));
   const kept = older.filter((group) => !fresh.has(group.name.toLowerCase()));
 
@@ -54,7 +55,7 @@ export async function remember(modelId, groups, now) {
     .sort((a, b) => b.seen - a.seen)
     .slice(0, MOST_GROUPS);
 
-  await store.set({ [KEY]: { model: modelId, groups: all.map((group) => ({ ...group, centre: pack(group.centre) })) } });
+  await store.set({ [KEY]: { model: how, groups: all.map((group) => ({ ...group, centre: pack(group.centre) })) } });
   return all.length;
 }
 

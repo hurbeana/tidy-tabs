@@ -72,12 +72,14 @@ export async function organise({ tabs, known, settings, embed, name }) {
   const leftover = tabs.map((_, index) => index).filter((index) => !placed.has(index));
   const discovered = discoverGroups(leftover, vectors, scale.related);
 
-  const everyTitle = tabs.map((tab) => tab.title);
+  // Naming reads the whole of a tab, not just its title.
+  const everyText = tabs.map((tab) => [tab.title, tab.text].filter(Boolean).join(". "));
   const named = [];
   for (const members of discovered) {
     const belongsTo = groupItBelongsTo(members, vectors, known, scale.clearly);
     const titles = members.map((index) => tabs[index].title);
-    const chosen = belongsTo ?? await name(titles, everyTitle, settings);
+    const texts = members.map((index) => everyText[index]);
+    const chosen = belongsTo ?? await name({ titles, texts, everyText }, settings);
     named.push({ name: chosen, members, isNew: !belongsTo });
   }
 
