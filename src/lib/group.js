@@ -126,9 +126,9 @@ async function think(windowId, chosenTabs, groupedTabs, blank, settings) {
   const placed = new Set(found.groups.flatMap((group) => group.tabIds));
   const loose = rest.filter((tab) => !placed.has(tab.id));
 
-  const everything = [...fromRules(named), ...found.groups];
-  const keep = biggestFirst(everything).slice(0, settings.maxGroups);
-  const trimmed = biggestFirst(everything).slice(settings.maxGroups);
+  const ranked = biggestFirst([...fromRules(named), ...found.groups]);
+  const keep = ranked.slice(0, settings.maxGroups);
+  const trimmed = ranked.slice(settings.maxGroups);
 
   const made = await build(windowId, keep, settings);
   const remembered = await keepInMind(keep, settings);

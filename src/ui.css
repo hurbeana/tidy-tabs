@@ -11,6 +11,7 @@ textarea { font-family: ui-monospace, monospace; font-size: .85em; }
 progress { margin: .3rem 0; }
 #progressLine { min-height: 1.2em; margin: 0; font-variant-numeric: tabular-nums; }
 .bad { color: var(--pico-del-color, #c33); }
+.warn { color: var(--pico-del-color, #c33); opacity: .9; font-size: .85em; }
 .good { color: var(--pico-ins-color, #2a7); }
 
 /* The popup wants to be compact. */

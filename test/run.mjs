@@ -168,6 +168,13 @@ await check("says plainly when nothing belonged together", async () => {
   assert.match(report.note, /Read a little of each page/);
 });
 
+await check("says when it was allowed to read pages but could read none", async () => {
+  load({ tabs: [tab("One", "a"), tab("Two", "b"), tab("Three", "c")], reply: fakeReader(themeOf), allowPageReading: true, pageText: "" });
+  const report = await groupWindow(1, settings({ readPages: true }));
+  assert.equal(report.groups, 0);
+  assert.match(report.note, /No page could be read/);
+});
+
 await check("a round that breaks says why", async () => {
   load({ tabs: CODE_AND_SHOPPING, reply: () => { throw new Error("the model fell over"); } });
   const report = await groupWindow(1, settings());

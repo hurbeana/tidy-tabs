@@ -13,15 +13,24 @@ function describeModel(settings, status) {
   return { line: "Names come from the words your tabs share.", needsSetup: false };
 }
 
+// Whether the pages are being read decides how good the grouping is, so a round that is
+// working from titles alone should say so rather than quietly doing a worse job.
+async function readingPages(settings) {
+  if (!settings.readPages) return false;
+  return api.permissions.contains({ origins: ["<all_urls>"] }).catch(() => false);
+}
+
 async function show() {
   const [{ result: status }, settings] = await Promise.all([ask({ type: "status" }), getSettings()]);
   const { line, needsSetup } = describeModel(settings, status);
 
+  const parts = [line];
+  if (!(await readingPages(settings))) parts.push("Pages are not being read, so tabs are sorted on their titles alone. Settings can turn that on.");
+  if (!status.hasTabGroups) parts.push("This browser has no tab groups, so tabs are lined up side by side instead.");
+
   $("enabled").checked = settings.enabled;
   $("setup").hidden = !needsSetup;
-  $("state").textContent = status.hasTabGroups
-    ? line
-    : `${line} This browser has no tab groups, so tabs are lined up side by side instead.`;
+  $("state").textContent = parts.join(" ");
 }
 
 async function groupNow() {

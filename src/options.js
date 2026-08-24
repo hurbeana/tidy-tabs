@@ -1,6 +1,6 @@
 // The settings page. Every control carries the name of the setting it changes.
 import { api, DEFAULTS, getSettings, saveSettings } from "./lib/settings.js";
-import { whatIsNeeded } from "./lib/models.js";
+import { READER, NAMER, whatIsNeeded } from "./lib/models.js";
 import { builtinDownload } from "./lib/builtin.js";
 import { warmUp } from "./lib/runtime.js";
 
@@ -93,13 +93,20 @@ const RUNTIME_WORDS = {
   none: " This browser cannot run a downloaded model at all."
 };
 
+// The two boxes for naming a model of your own show the ones in use, so nobody has to
+// guess the spelling, and so they cannot drift out of date the way written-in ones did.
+function showWhichModels() {
+  $("readerModel").placeholder = READER.id;
+  $("namerModel").placeholder = NAMER.id;
+}
+
 async function describeState() {
   const { result: status } = await ask({ type: "status" });
 
   if (!$("modelState").dataset.state) mark("idle");
   const naming = $("naming").value;
   const opening = naming === "download"
-    ? `A downloaded model will write the group names. It is about ${status.needs.at(-1)?.mb ?? 0} MB.`
+    ? `A downloaded model will write the group names. It is ${roughSize(status.needs.at(-1)?.mb ?? 0)}, downloaded once and then kept.`
     : BUILTIN_WORDS[status.builtin];
 
   const parts = [opening, RUNTIME_WORDS[status.runtime] ?? ""];
@@ -109,10 +116,17 @@ async function describeState() {
   say("modelState", parts.join(""), "");
 
   const mayRead = await api.permissions.contains({ origins: ["<all_urls>"] }).catch(() => false);
-  say("permState", mayRead ? "You have given permission to read pages." : "You have not given permission to read pages yet.");
+  const reading = $("readPages")?.checked ?? true;
+
+  if (mayRead && reading) say("permState", "Pages are being read, which is the setting that matters most.", "muted");
+  else if (!mayRead) say("permState", "Pages are not being read yet, so tabs are judged on their title and address alone. Grouping is a good deal worse that way. Press the button above.", "warn");
+  else say("permState", "You have given permission, but reading is switched off above, so tabs are judged on their title and address alone.", "warn");
 }
 
 const size = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`);
+
+// Megabytes stop meaning much once there are four figures of them.
+const roughSize = (mb) => (mb >= 1000 ? `about ${(mb / 1000).toFixed(1)} GB` : `about ${Math.round(mb)} MB`);
 
 // ---- Getting a model ready ---------------------------------------------------------
 
@@ -167,14 +181,17 @@ async function getReady(settings) {
 async function onGetReady() {
   if (!(await grant())) return;
 
+  const settings = await getSettings();
+  const toFetch = whatIsNeeded(settings).reduce((sum, spec) => sum + (spec.mb ?? 0), 0);
+
   $("get").setAttribute("aria-busy", "true");
   mark("working");
-  say("modelState", "Getting everything ready. The first time can take a while.");
+  say("modelState", `Getting everything ready. That is ${roughSize(toFetch)} to fetch the first time, and it is kept afterwards.`);
   say("progressLine", "Waking the hidden page…");
   heard();
 
   try {
-    const result = await getReady(await getSettings());
+    const result = await getReady(settings);
     mark(result === "ready" ? "ready" : "failed");
     say("modelState", result === "ready" ? "Everything is ready." : result, "good");
     say("progressLine", "");
@@ -288,6 +305,7 @@ document.addEventListener("change", (event) => {
   if (!event.target.dataset?.key) return;
   save();
   showRelevant();
+  describeState();
 });
 
 document.addEventListener("input", (event) => {
@@ -298,6 +316,7 @@ api.runtime.onMessage.addListener(onProgress);
 
 getSettings().then((settings) => {
   put(settings);
+  showWhichModels();
   showRelevant();
   describeState();
 });

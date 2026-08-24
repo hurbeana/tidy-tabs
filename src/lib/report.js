@@ -39,6 +39,10 @@ function whyNothingWasMade(report, settings) {
   if (report.considered < 2) return "There is only one tab to sort, and a group needs at least two.";
   if (!settings.readPages) return `${looked} Turn on “Read a little of each page, not just its title” to give it more to go on.`;
 
+  // Asking to read pages and reading none is the likeliest reason for a poor round, and
+  // it is nobody's fault but a missing permission. Say that rather than blame the tabs.
+  if (!report.read) return `${looked} No page could be read, so this went on titles and addresses alone. Check that you have given permission to read pages.`;
+
   return `${looked} They may simply be about different things. Open a few more tabs on a topic and try again.`;
 }
 

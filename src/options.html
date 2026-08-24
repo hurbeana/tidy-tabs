@@ -35,21 +35,21 @@
   </label>
 
   <label>
-    <input type="checkbox" role="switch" data-key="readPages">
+    <input type="checkbox" role="switch" data-key="readPages" id="readPages">
     Read a little of each page, not just its title
   </label>
-  <p class="muted">This is what makes the grouping good. Reading the page tells it what “Noitool” or “Rücksendezentrum” is about, where a title alone cannot. Nothing leaves this computer.</p>
+  <p class="muted">This is what makes the grouping good, and by a wide margin. Plenty of tabs have a title that says almost nothing, and the page itself says plenty. Only a few lines are read, only on this computer, and nothing is kept.</p>
   <div class="buttons"><button class="secondary" id="allow">Give permission to read pages</button></div>
   <p class="muted" id="permState"></p>
 </article>
 
 <article>
   <h2>Naming</h2>
-  <p class="muted">Your tabs are grouped by a small model that reads them. This chooses who writes the names.</p>
+  <p class="muted">A small model reads your tabs and works out which belong together. That part always happens. This chooses who writes the name on each group.</p>
   <label>Group names come from
     <select data-key="naming" id="naming">
       <option value="auto">Your browser's own model, or the words your tabs share</option>
-      <option value="download">A model I download — better names, but slow without a graphics card</option>
+      <option value="download">A model I download — the best names, but a large one-time download</option>
     </select>
   </label>
   <p id="modelState">Checking what your browser can do…</p>
@@ -108,10 +108,10 @@
 <details>
   <summary>For a rainy day</summary>
   <label>Model that reads your tabs
-    <input type="text" data-key="readerModel" placeholder="Xenova/all-MiniLM-L6-v2">
+    <input type="text" data-key="readerModel" id="readerModel">
   </label>
   <label>Model that writes the names
-    <input type="text" data-key="namerModel" placeholder="HuggingFaceTB/SmolLM2-360M-Instruct">
+    <input type="text" data-key="namerModel" id="namerModel">
   </label>
   <label><input type="checkbox" role="switch" data-key="showBadge"> Show the number of new groups on the toolbar button</label>
   <label><input type="checkbox" role="switch" data-key="debug"> Write notes to the console</label>

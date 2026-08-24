@@ -42,12 +42,20 @@ async function readOne(tabId) {
   }
 }
 
-// Only ever called for the handful of tabs the titles could not place, so this stays
-// cheap even in a window with a hundred tabs open.
+// Every tab is read now, so a window with a hundred tabs open would ask the browser to
+// run a hundred scripts at once. A few at a time is just as quick in practice and leaves
+// the rest of the computer alone.
+const AT_ONCE = 8;
+
 export async function readPages(tabs) {
   if (!(await mayReadPages())) return tabs;
 
-  const summaries = await Promise.all(tabs.map((tab) => readOne(tab.id)));
+  const summaries = [];
+  for (let start = 0; start < tabs.length; start += AT_ONCE) {
+    const batch = tabs.slice(start, start + AT_ONCE);
+    summaries.push(...await Promise.all(batch.map((tab) => readOne(tab.id))));
+  }
+
   return tabs.map((tab, i) => ({ ...tab, text: summaries[i] }));
 }
 

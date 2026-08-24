@@ -12,12 +12,15 @@ import { tidyName } from "./text.js";
 const MOST_TITLES = 8;
 const MOST_LETTERS = 160;
 
+// More words than this is a sentence, not a name.
+const MOST_WORDS = 5;
+
 // A small model follows an example far better than it follows an instruction, so it is
 // shown two groups already named before being asked about yours. Both examples were kept
 // short on purpose: a model that is shown long answers writes long answers.
 const SHOWN = [
   ["- Cheap flights to Lisbon in March\n- Hotels in Alfama, Lisbon\n- Lisbon tram 28 route map", "Lisbon trip"],
-  ["- Array.prototype.map() | MDN\n- How to center a div - Stack Overflow\n- hurbeana/tidy-tabs: AI tab grouper", "Web development"]
+  ["- Array.prototype.map() | MDN\n- How to center a div - Stack Overflow\n- Why is my build failing? - GitHub", "Web development"]
 ];
 
 const ORDERS = "You give a group of browser tabs a short name. One or two words. Reply with the name only, in the language of the tabs.";
@@ -51,7 +54,21 @@ export function firstWords(said) {
   const afterLeadIn = firstLine.includes(":") ? firstLine.slice(firstLine.lastIndexOf(":") + 1) : firstLine;
   const withoutPunctuation = afterLeadIn.replace(/^["'*#\s]+|["'*.\s]+$/g, "");
 
-  return tidyName(withoutPunctuation.split(/\s+/).slice(0, 2).join(" "));
+  // A model that answers with a sentence has not understood the question. Cutting the
+  // sentence down would turn "I think these tabs are all about headphones" into
+  // "I think these", so a long answer counts as no answer and the words win instead.
+  const answered = withoutPunctuation.split(/\s+/).filter(Boolean);
+  if (answered.length > MOST_WORDS) return "";
+
+  // A few words, not a set number of them: "Far Far West" is a name and "Far Far" is not.
+  // How long a name may be is tidyName's business, and it drops whole words to fit.
+  const words = answered.slice(0, 4);
+
+  // "Cryptography & Security" trimmed to fit leaves a dangling "&". A name should not end
+  // on a word that joins it to something that is no longer there.
+  while (words.length > 1 && !/[\p{L}\p{N}]/u.test(words.at(-1))) words.pop();
+
+  return tidyName(words.join(" "));
 }
 
 // Words that stand out in this group because they hardly appear in your other tabs.
