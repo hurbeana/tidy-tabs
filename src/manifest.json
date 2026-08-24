@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Tidy Tabs — AI Tab Grouper",
   "short_name": "Tidy Tabs",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Groups your tabs by topic, automatically and fully on your device. Uses built-in AI when your browser has it.",
   "icons": {
     "16": "icons/icon-16.png",

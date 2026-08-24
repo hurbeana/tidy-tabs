@@ -72,6 +72,10 @@ Chrome runs downloaded models in a hidden page, because a background worker
 cannot use a graphics card. Firefox runs them through its own local AI runtime,
 so Firefox asks you for the `trialML` permission the first time.
 
+Only the two big generators use a graphics card. The small models are quick on
+the processor, and running them there avoids a whole class of driver trouble.
+You can force either under **Advanced**.
+
 If your browser has no built-in model, Tidy Tabs falls back to the choice you
 set under **If the built-in model is missing**.
 
@@ -114,10 +118,11 @@ See [PRIVACY.md](PRIVACY.md) for the full statement.
 ## For developers
 
 ```sh
-./vendor.sh         # fetches Transformers.js and ONNX Runtime into src/vendor
-./build.sh          # builds dist/tidy-tabs-chrome-*.zip and dist/tidy-tabs-firefox-*.zip
-./build.sh 1.1.0    # sets the version in both manifests, then builds
-node test/run.mjs   # runs the checks against a pretend browser
+./vendor.sh          # fetches the libraries into src/vendor
+./build.sh           # builds dist/tidy-tabs-chrome-*.zip and dist/tidy-tabs-firefox-*.zip
+./build.sh 1.3.0     # sets the version in both manifests, then builds
+node test/run.mjs    # checks the grouping against a pretend browser
+node test/wiring.mjs # checks the wiring a real browser would only show at run time
 ```
 
 The code has no build step and no package manager. `src` is the extension.

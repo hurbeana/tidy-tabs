@@ -1,6 +1,10 @@
 // The settings page. Every control carries the name of the setting it changes.
 import { api, DEFAULTS, getSettings, saveSettings } from "./lib/settings.js";
-import { MODELS } from "./lib/models.js";
+import { MODELS, modelSpec } from "./lib/models.js";
+import { builtinDownload } from "./lib/builtin.js";
+import { warmUp } from "./lib/runtime.js";
+
+const PIPELINE = { generate: "text-generation", zeroshot: "zero-shot-classification", embed: "feature-extraction" };
 
 const $ = (id) => document.getElementById(id);
 const fields = () => [...document.querySelectorAll("[data-key]")];
@@ -42,18 +46,40 @@ const grant = async (model) => {
   return true;
 };
 
+// The settings page does this work itself. The background worker falls asleep
+// during a long download, which used to leave this page waiting for ever.
+let stall = null;
+const heard = () => { clearTimeout(stall); stall = setTimeout(() => say("progressLine", "No word from the model for half a minute. Press “Check my setup”, or try “Where the model runs: Processor” under Advanced.", "bad"), 30000); };
+const quiet = () => clearTimeout(stall);
+
+const getReady = async (key, settings) => {
+  if (key === "builtin") { const state = await builtinDownload((percent) => say("progressLine", `Downloading the built-in model — ${percent}%`)); return state === "available" ? "ready" : `Your browser says the built-in model is ${state}.`; }
+  const spec = modelSpec(settings, key);
+  if (spec.task === "none") return "This choice uses no model, so there is nothing to fetch.";
+  if (!spec.id) return "That model has no name. Fill one in under Advanced.";
+  await warmUp({ ...spec, dtype: settings.dtype || undefined, device: settings.device || undefined }, PIPELINE[spec.task]);
+  return "ready";
+};
+
 $("get").addEventListener("click", async () => {
   const model = $("model").value;
   if (!(await grant(model))) return;
   $("get").setAttribute("aria-busy", "true");
   say("modelState", "Getting the model ready. The first time can take a while.");
-  say("progressLine", "Starting…");
-  const { result, error } = await ask({ type: "ready", model });
-  $("get").removeAttribute("aria-busy");
-  $("bar").hidden = true;
-  say("modelState", error ? `That did not work: ${error}` : typeof result === "string" && result !== "ready" ? result : "The model is ready.", error ? "bad" : "good");
-  if (!error) say("progressLine", "");
-  describeState();
+  say("progressLine", "Waking the hidden page…");
+  heard();
+  try {
+    const result = await getReady(model, await getSettings());
+    say("modelState", typeof result === "string" && result !== "ready" ? result : "The model is ready.", "good");
+    say("progressLine", "");
+  } catch (error) {
+    say("modelState", `That did not work: ${error?.message ?? error}`, "bad");
+  } finally {
+    quiet();
+    $("get").removeAttribute("aria-busy");
+    $("bar").hidden = true;
+    describeState();
+  }
 });
 
 $("checkup").addEventListener("click", async () => {
@@ -83,7 +109,11 @@ document.addEventListener("input", (e) => e.target.dataset?.key && e.target.tagN
 // Live word from the model download.
 api.runtime.onMessage.addListener((m) => {
   if (m?.target !== "tidy-progress") return;
+  heard();
   const bar = $("bar");
+  if (m.phase === "heard") return say("progressLine", "The hidden page is awake. Choosing where to run…");
+  if (m.phase === "picking") return say("progressLine", "Looking for a graphics card…");
+  if (m.phase === "failed") { quiet(); return say("progressLine", m.note, "bad"); }
   if (m.phase === "progress") { bar.hidden = false; bar.value = m.percent; bar.max = 100; say("progressLine", `Downloading ${m.file} — ${m.percent}%${m.total ? ` (${size(m.loaded)} of ${size(m.total)})` : ""}`); }
   else if (m.phase === "initiate" || m.phase === "download") { bar.hidden = false; bar.removeAttribute("value"); say("progressLine", `Fetching ${m.file}…`); }
   else if (m.phase === "starting") say("progressLine", `Loading the model on the ${m.device === "webgpu" ? "graphics card" : "processor"}, using ${m.dtype} weights.`);
