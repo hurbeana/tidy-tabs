@@ -132,9 +132,20 @@ try {
     await options.select("#model", "tiny");
     await setSettings(options, { model: "tiny" });
     await options.click("#get");
-    const done = await until(async () => /ready|did not work|needs permission/.test(await textOf(options, "modelState")), 600000, 2000);
+    // The page says plainly how it went, so this cannot be fooled by a hopeful sentence.
+    const state = () => options.$eval("#modelState", (el) => el.dataset.state);
+    const started = Date.now();
+    const settled = await until(async () => (await state()) !== "working", 600000, 2000);
+    const seconds = Math.round((Date.now() - started) / 1000);
+
     console.log(`  ${await textOf(options, "progressLine")}`);
-    must("the model becomes ready", done && (await textOf(options, "modelState")).includes("ready"), await textOf(options, "modelState"));
+    console.log(`  it took ${seconds}s and ended as "${await state()}"`);
+    must("the model becomes ready", settled && (await state()) === "ready", await textOf(options, "modelState"));
+    // The surest proof is the hidden page holding a loaded model afterwards.
+    await options.click("#checkup");
+    await until(async () => (await textOf(options, "progressLine")).includes("Runtime"), 20000);
+    const setup = await textOf(options, "progressLine");
+    must("a model is really loaded afterwards", /Loaded now:.*MiniLM/i.test(setup), setup);
     must("no backend was missing", !said.some((l) => /no available backend/i.test(l)), said.filter((l) => /no available backend/i.test(l)).join("\n        "));
   }
 

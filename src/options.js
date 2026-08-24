@@ -17,6 +17,10 @@ function say(id, text, tone = "") {
   $(id).className = tone;
 }
 
+// A plain word for how getting a model ready is going: working, ready, or failed.
+// The wording above is for people; this is for anything reading the page.
+const mark = (state) => $("modelState").setAttribute("data-state", state);
+
 // ---- Reading and writing the form -------------------------------------------------
 
 const lines = (text) => text.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -103,6 +107,7 @@ const RUNTIME_WORDS = {
 async function describeState() {
   const { result: status } = await ask({ type: "status" });
 
+  if (!$("modelState").dataset.state) mark("idle");
   const parts = [BUILTIN_WORDS[status.builtin], RUNTIME_WORDS[status.runtime] ?? ""];
   if (status.needsPermission) parts.push(" Firefox needs your permission before it may run a model. Press the button below.");
   if (!status.hasTabGroups) parts.push(" This browser cannot make tab groups, so matching tabs are parked side by side instead.");
@@ -170,15 +175,18 @@ async function onGetReady() {
   if (!(await grant(model))) return;
 
   $("get").setAttribute("aria-busy", "true");
+  mark("working");
   say("modelState", "Getting the model ready. The first time can take a while.");
   say("progressLine", "Waking the hidden page…");
   heard();
 
   try {
     const result = await getReady(model, await getSettings());
+    mark(result === "ready" ? "ready" : "failed");
     say("modelState", result === "ready" ? "The model is ready." : result, "good");
     say("progressLine", "");
   } catch (error) {
+    mark("failed");
     say("modelState", `That did not work: ${error?.message ?? error}`, "bad");
   } finally {
     quiet();
