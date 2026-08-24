@@ -13,4 +13,14 @@ must("the hidden page reports its own failures", /phase: "failed"/.test(offscree
 must("a page without the offscreen API asks the worker", /!api\.offscreen.*open-runtime/s.test(runtime));
 must("the worker stays awake while it works", /keepAwake/.test(background));
 must("the settings page warns when nothing is heard", /No word from the model/.test(options));
+// The .web. builds of Transformers.js leave ONNX Runtime as a bare import, which no
+// browser can resolve. Letting Node resolve the file is the surest way to tell them apart.
+const { existsSync } = await import("node:fs");
+const bundle = new URL("../src/vendor/transformers.js", import.meta.url);
+if (!existsSync(bundle)) console.log("  skip  vendored bundle check — run ./vendor.sh first");
+else await import(bundle).then(
+  (mod) => must("the vendored bundle needs nothing from outside itself", typeof mod.pipeline === "function"),
+  (error) => must(`the vendored bundle needs nothing from outside itself (${error.code ?? error.name})`, error.code !== "ERR_MODULE_NOT_FOUND")
+);
+
 process.exit(bad ? 1 : 0);

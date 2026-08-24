@@ -15,7 +15,7 @@ transformers=4.2.0
 onnx=1.26.0-dev.20260416-b7804b056c
 pico=2.1.1
 
-sums="0a96dcf4c48981b7d05f53827e6975ec239132606ad0d526bbc2db0fcdbc4ded  $out/transformers.js
+sums="e74bd32ed4453369ebb0edcaa27f6bc6204004a949a0233cdb87b62dda8d6978  $out/transformers.js
 522b3769929f5684c83a12cf1e06eedf073b65d161728b4f3757c75d62b14384  $out/ort-wasm-simd-threaded.jsep.mjs
 ae61141f8fbf0a4e43fd7b4f4d40a1a115627f6facc4f33ddf84074a655e33ea  $out/ort-wasm-simd-threaded.jsep.wasm
 61207a40ffc02a42d1e50143651c121beab70ed413c934c1ff84fa263ba436b0  $out/pico.classless.min.css"
@@ -36,7 +36,9 @@ mv "$work/package" "$work/transformers"
 tar xzf "$work/o.tgz" -C "$work"
 mkdir "$work/pico" && tar xzf "$work/p.tgz" -C "$work/pico"
 
-cp "$work/transformers/dist/transformers.web.min.js" "$out/transformers.js"
+# The .web. builds leave ONNX Runtime as a bare import, which a browser cannot resolve.
+# This one bundles everything, so the add-on needs nothing from the internet.
+cp "$work/transformers/dist/transformers.min.js" "$out/transformers.js"
 cp "$work/package/dist/ort-wasm-simd-threaded.jsep.mjs" "$out/"
 cp "$work/package/dist/ort-wasm-simd-threaded.jsep.wasm" "$out/"
 cp "$work/pico/package/css/pico.classless.min.css" "$out/"

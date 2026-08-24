@@ -132,6 +132,11 @@ not our code. `vendor.sh` fetches Transformers.js, ONNX Runtime, and Pico.css,
 each pinned to an exact version and checked against a SHA-256 sum. `build.sh`
 runs it for you.
 
+Take the `transformers.min.js` build, not `transformers.web.min.js`. The `.web.`
+builds are made for bundlers and leave ONNX Runtime as a bare import, which no
+browser can resolve. `test/wiring.mjs` checks this, and `build.sh` refuses to
+build if it fails.
+
 The settings page shows six things and hides the rest behind expanders. When
 Tidy Tabs does nothing, it says why: which tabs it skipped, which topics were
 too small, or what the model complained about. `src/lib/report.js` writes those

@@ -15,6 +15,11 @@ fi
 
 sh "$here/vendor.sh"
 
+# A wrong vendored bundle only shows up when a browser tries to load it, so check here.
+if command -v node >/dev/null 2>&1; then
+  node "$here/test/wiring.mjs" >/dev/null || { echo "The wiring checks failed. Run: node test/wiring.mjs"; exit 1; }
+fi
+
 version=$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' "$here/src/manifest.json" | head -1)
 rm -rf "$dist" && mkdir -p "$dist/chrome" "$dist/firefox"
 
