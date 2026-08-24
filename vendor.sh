@@ -16,8 +16,10 @@ onnx=1.26.0-dev.20260416-b7804b056c
 pico=2.1.1
 
 sums="e74bd32ed4453369ebb0edcaa27f6bc6204004a949a0233cdb87b62dda8d6978  $out/transformers.js
-522b3769929f5684c83a12cf1e06eedf073b65d161728b4f3757c75d62b14384  $out/ort-wasm-simd-threaded.jsep.mjs
-ae61141f8fbf0a4e43fd7b4f4d40a1a115627f6facc4f33ddf84074a655e33ea  $out/ort-wasm-simd-threaded.jsep.wasm
+5f2cd914554830762579c372d0211614c1e3f40ab3f6c0cfcf0900343229071d  $out/ort-wasm-simd-threaded.mjs
+f4f290847a4df02d0b93cdbf39b4b0e71acefbe80573e7e6b9342a7abd7b290a  $out/ort-wasm-simd-threaded.wasm
+5959c6733039619c9af710d8e1bae8d6e84402787990637be987c2b1bd6c5fa9  $out/ort-wasm-simd-threaded.asyncify.mjs
+e0c0c6d3e73d43b8a249972f8358f845b08cc16fec3c80efafdf8bed40366786  $out/ort-wasm-simd-threaded.asyncify.wasm
 61207a40ffc02a42d1e50143651c121beab70ed413c934c1ff84fa263ba436b0  $out/pico.classless.min.css"
 
 if [ "${1:-}" != "--force" ] && printf '%s\n' "$sums" | sha256sum -c --status 2>/dev/null; then
@@ -39,8 +41,11 @@ mkdir "$work/pico" && tar xzf "$work/p.tgz" -C "$work/pico"
 # The .web. builds leave ONNX Runtime as a bare import, which a browser cannot resolve.
 # This one bundles everything, so the add-on needs nothing from the internet.
 cp "$work/transformers/dist/transformers.min.js" "$out/transformers.js"
-cp "$work/package/dist/ort-wasm-simd-threaded.jsep.mjs" "$out/"
-cp "$work/package/dist/ort-wasm-simd-threaded.jsep.wasm" "$out/"
+# Only the files this build of Transformers.js actually names. It never asks for
+# the jsep or jspi variants, so shipping those would be dead weight.
+for part in ort-wasm-simd-threaded.mjs ort-wasm-simd-threaded.wasm ort-wasm-simd-threaded.asyncify.mjs ort-wasm-simd-threaded.asyncify.wasm; do
+  cp "$work/package/dist/$part" "$out/"
+done
 cp "$work/pico/package/css/pico.classless.min.css" "$out/"
 cp "$work/pico/package/LICENSE.md" "$out/LICENSE-pico.txt"
 cp "$work/transformers/LICENSE" "$out/LICENSE-transformers.txt"

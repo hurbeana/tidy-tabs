@@ -117,30 +117,56 @@ See [PRIVACY.md](PRIVACY.md) for the full statement.
 
 ## For developers
 
+### Set up once
+
 ```sh
-./vendor.sh          # fetches the libraries into src/vendor
-./build.sh           # builds dist/tidy-tabs-chrome-*.zip and dist/tidy-tabs-firefox-*.zip
-./build.sh 1.3.0     # sets the version in both manifests, then builds
-node test/run.mjs    # checks the grouping against a pretend browser
-node test/wiring.mjs # checks the wiring a real browser would only show at run time
+./setup.sh
+. ./.tools/env.sh
 ```
 
-The code has no build step and no package manager. `src` is the extension.
+`setup.sh` needs no admin rights and touches nothing outside this folder. It
+finds or fetches Node, finds a Chromium-like browser to test in, installs the
+driver that opens it, and fetches the libraries the add-on ships. Set `CHROME`
+first if you want a particular browser.
 
-Three libraries are not kept in this repository, because they are large and are
-not our code. `vendor.sh` fetches Transformers.js, ONNX Runtime, and Pico.css,
-each pinned to an exact version and checked against a SHA-256 sum. `build.sh`
-runs it for you.
+### Everyday commands
 
-Take the `transformers.min.js` build, not `transformers.web.min.js`. The `.web.`
-builds are made for bundlers and leave ONNX Runtime as a bare import, which no
-browser can resolve. `test/wiring.mjs` checks this, and `build.sh` refuses to
-build if it fails.
+```sh
+npm run check         # reads the code, then the two fast groups of checks
+npm test              # every check, slowest last, including a real browser
+npm run test:quick    # the two fast groups, no browser
+npm run test:browser  # a real browser, with the model download
+npm run lint          # eslint
+npm run lint:firefox  # the linter Mozilla itself runs, on the built package
+npm run build         # builds both store packages into dist
+./build.sh 1.3.0      # sets the version in both manifests, then builds
+npm run dev:firefox   # opens Firefox with the add-on loaded and reloading
+node test/browser.mjs --quick   # a real browser, without the model download
+```
 
-The settings page shows six things and hides the rest behind expanders. When
-Tidy Tabs does nothing, it says why: which tabs it skipped, which topics were
-too small, or what the model complained about. `src/lib/report.js` writes those
-sentences.
+Every push runs the same checks on GitHub, in
+[`.github/workflows/checks.yml`](.github/workflows/checks.yml). Pushing a tag
+such as `v1.3.0` builds both packages and attaches them to a release.
+
+### The three groups of checks
+
+| File | What it can catch |
+| --- | --- |
+| `test/run.mjs` | Grouping decisions, against a pretend browser. Fast, no downloads. |
+| `test/wiring.mjs` | Facts a browser only shows at run time: a vendored bundle that needs a bundler, a wasm file the runtime names but nobody ships, a page that waits on the background worker. |
+| `test/browser.mjs` | The add-on in a real Chromium, driven like a person. It reads every line the worker, the settings page, and the hidden page print, and fails on any of them. |
+
+The browser checks are the only ones that catch a broken module, a missing wasm
+file, or a hidden page that never wakes up. Run them before you ship a build.
+They keep a browser profile in `.tools/profile`, so the model is downloaded once
+and reused after that. Delete that folder for a clean first run.
+
+`build.sh` runs the wiring checks and refuses to build when they fail.
+
+### How the code is laid out
+
+The code has no build step and no package manager of its own. `src` is the
+extension.
 
 | File | What it does |
 | --- | --- |
@@ -158,10 +184,27 @@ sentences.
 | `src/lib/rules.js` | Your own rules and your skip list. |
 | `src/lib/settings.js` | Reads and writes your settings. |
 | `src/offscreen.js` | The hidden page where Chrome runs a model. |
-| `src/vendor/` | Transformers.js, ONNX Runtime, and Pico.css, fetched by `vendor.sh`. |
+| `src/vendor/` | Fetched by `vendor.sh`. Not kept in this repository. |
+
+### About the vendored libraries
+
+Three libraries are not kept here, because they are large and are not our code.
+`vendor.sh` fetches Transformers.js, ONNX Runtime, and Pico.css, each pinned to
+an exact version and checked against a SHA-256 sum.
+
+Two traps, both of which cost a release:
+
+- Take the `transformers.min.js` build, not `transformers.web.min.js`. The
+  `.web.` builds are made for bundlers and leave ONNX Runtime as a bare import,
+  which no browser can resolve.
+- Ship the wasm files that build actually names. It asks for
+  `ort-wasm-simd-threaded.wasm` and the `asyncify` pair, and never for `jsep` or
+  `jspi`. A missing one shows up only as "no available backend found".
+
+`test/wiring.mjs` checks both.
 
 The store rules say an add-on may not fetch code from the internet, so the
-runtime ships inside the package. That is why the Chrome build is about 6 MB.
+runtime ships inside the package. That is why the Chrome build is about 9 MB.
 The Firefox build leaves it out, because Firefox supplies its own runtime.
 
 ## Licence

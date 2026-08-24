@@ -1,5 +1,5 @@
 // A quick sanity pass over things the browser would only tell us at run time.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 const read = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8");
 let bad = 0;
 const must = (name, ok) => { console.log(`${ok ? "  ok " : "FAIL"}  ${name}`); if (!ok) bad++; };
@@ -15,12 +15,18 @@ must("the worker stays awake while it works", /keepAwake/.test(background));
 must("the settings page warns when nothing is heard", /No word from the model/.test(options));
 // The .web. builds of Transformers.js leave ONNX Runtime as a bare import, which no
 // browser can resolve. Letting Node resolve the file is the surest way to tell them apart.
-const { existsSync } = await import("node:fs");
+
 const bundle = new URL("../src/vendor/transformers.js", import.meta.url);
 if (!existsSync(bundle)) console.log("  skip  vendored bundle check — run ./vendor.sh first");
 else await import(bundle).then(
   (mod) => must("the vendored bundle needs nothing from outside itself", typeof mod.pipeline === "function"),
   (error) => must(`the vendored bundle needs nothing from outside itself (${error.code ?? error.name})`, error.code !== "ERR_MODULE_NOT_FOUND")
 );
+
+// The runtime fetches its wasm files by name at run time. A missing one only shows up
+// as "no available backend found", so check the names against what actually ships.
+const wanted = [...new Set([...read("vendor/transformers.js").matchAll(/ort-wasm[a-z0-9.-]*\.(?:mjs|wasm)/g)].map((m) => m[0]))];
+must("the vendored runtime names at least one wasm file", wanted.length > 0);
+for (const file of wanted) must(`the runtime can find ${file}`, existsSync(new URL(`../src/vendor/${file}`, import.meta.url)));
 
 process.exit(bad ? 1 : 0);

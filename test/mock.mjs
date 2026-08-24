@@ -12,7 +12,7 @@ export const makeBrowser = () => {
       group: async ({ tabIds, groupId, createProperties }) => { const id = groupId ?? state.nextGroup++; if (!state.groups.find((g) => g.id === id)) state.groups.push({ id, title: "", color: "grey", windowId: createProperties?.windowId ?? 1 }); tabIds.forEach((tid) => (state.tabs.find((t) => t.id === tid).groupId = id)); return id; },
       ungroup: async (ids) => ids.forEach((tid) => (state.tabs.find((t) => t.id === tid).groupId = -1)),
       move: async () => {},
-      onUpdated: { addListener: (fn) => listeners.push(fn) }
+      onUpdated: { addListener: () => {} }
     },
     tabGroups: { query: async ({ windowId }) => state.groups.filter((g) => g.windowId === windowId), update: async (id, props) => Object.assign(state.groups.find((g) => g.id === id), props), TAB_GROUP_ID_NONE: -1 },
     scripting: { executeScript: async () => [{ result: state.pageText }] },

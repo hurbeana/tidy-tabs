@@ -11,9 +11,9 @@ let waiting = null;
 let busy = false;
 let last = null;
 
-const flash = async (text, settings) => { if (!settings.showBadge) return; await api.action.setBadgeBackgroundColor({ color: "#2f6f52" }).catch(() => {}); await api.action.setBadgeText({ text }).catch(() => {}); setTimeout(() => api.action.setBadgeText({ text: "" }).catch(() => {}), 4000); };
+const flash = async (text, settings) => { if (!settings.showBadge) return; await api.action.setBadgeBackgroundColor({ color: "#2f6f52" }).catch(() => {}); await api.action.setBadgeText({ text }).catch(() => {}); setTimeout(() => { try { api.action.setBadgeText({ text: "" }).catch(() => {}); } catch { /* the browser is closing */ } }, 4000); };
 
-const keepAwake = () => { const beat = setInterval(() => api.runtime.getPlatformInfo().catch(() => {}), 20000); return () => clearInterval(beat); };
+const keepAwake = () => { const beat = setInterval(() => { try { api.runtime.getPlatformInfo().catch(() => {}); } catch { /* the browser is closing */ } }, 20000); return () => clearInterval(beat); };
 
 const tidy = async (windowId, why) => {
   const settings = await getSettings();

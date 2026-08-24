@@ -208,4 +208,32 @@ await check("tells the model to prefer an open group", async () => {
   assert.match(prompt, /Always prefer an open group/);
 });
 
+
+// The website name is the last resort, so it must not produce nonsense.
+const { siteName } = await import("../src/lib/rules.js");
+await check("names a website sensibly", async () => {
+  const name = (host) => siteName({ host, url: `https://${host}/`, title: "" });
+  assert.equal(name("www.example.com"), "Example");
+  assert.equal(name("bbc.co.uk"), "Bbc", "a short second-to-last part must be skipped");
+  assert.equal(name("news.bbc.co.uk"), "Bbc");
+  assert.equal(name("127.0.0.1"), "127.0.0.1", "an address has no name, so it is used whole");
+  assert.equal(name("localhost"), "Localhost");
+  assert.equal(name("git.io"), "Git");
+  assert.equal(name(""), "Other");
+});
+
+
+// Anyone upgrading has settings saved by an older version. Those must not break anything.
+const { repair, DEFAULTS: BASE } = await import("../src/lib/settings.js");
+await check("settings saved by an older version are repaired", async () => {
+  const fixed = repair({ skipList: "example.com\nsecond.test", colors: "Code = blue", rules: "github.com = Code", maxGroups: "", minTabsPerGroup: "3", enabled: 1 });
+  assert.deepEqual(fixed.skipList, ["example.com", "second.test"], "a string becomes a list");
+  assert.deepEqual(fixed.colors, {}, "a string cannot be a set of colours, so it is dropped");
+  assert.deepEqual(fixed.rules, [], "a string cannot be a set of rules, so it is dropped");
+  assert.equal(fixed.maxGroups, BASE.maxGroups, "an empty number falls back");
+  assert.equal(fixed.minTabsPerGroup, 3, "a number written as text is still a number");
+  assert.equal(fixed.enabled, true, "a switch is always true or false");
+  assert.deepEqual(repair({}), BASE, "nothing saved means the starting settings");
+});
+
 console.log(`\n${passed} check(s) passed.`);

@@ -14,8 +14,20 @@ const say = (id, text, tone = "") => Object.assign($(id), { textContent: text, c
 const lines = (text) => text.split("\n").map((line) => line.trim()).filter(Boolean);
 const pairs = (text) => lines(text).map((line) => line.split("=")).filter((p) => p.length > 1).map(([a, ...b]) => [a.trim(), b.join("=").trim()]);
 
-const toText = (el, value) => (el.dataset.list ? (value ?? []).join("\n") : el.dataset.map ? Object.entries(value ?? {}).map(([k, v]) => `${k} = ${v}`).join("\n") : el.dataset.rules ? (value ?? []).map((r) => `${r.match} = ${r.category}`).join("\n") : value ?? "");
-const fromText = (el) => (el.dataset.list ? lines(el.value) : el.dataset.map ? Object.fromEntries(pairs(el.value)) : el.dataset.rules ? pairs(el.value).map(([match, category]) => ({ match, category })) : el.type === "number" ? Number(el.value) : el.value);
+const asText = {
+  list: (value) => (Array.isArray(value) ? value : typeof value === "string" ? [value] : []).join("\n"),
+  map: (value) => Object.entries(value ?? {}).map(([k, v]) => `${k} = ${v}`).join("\n"),
+  rules: (value) => (Array.isArray(value) ? value : []).map((rule) => `${rule.match} = ${rule.category}`).join("\n")
+};
+
+const asValue = {
+  list: (text) => lines(text),
+  map: (text) => Object.fromEntries(pairs(text)),
+  rules: (text) => pairs(text).map(([match, category]) => ({ match, category }))
+};
+
+const toText = (el, value) => (asText[el.dataset.kind]?.(value) ?? value ?? "");
+const fromText = (el) => asValue[el.dataset.kind]?.(el.value) ?? (el.type === "number" ? Number(el.value) : el.value);
 
 const put = (settings) => fields().forEach((el) => (el.type === "checkbox" ? (el.checked = !!settings[el.dataset.key]) : (el.value = toText(el, settings[el.dataset.key]))));
 const collect = () => Object.fromEntries(fields().map((el) => [el.dataset.key, el.type === "checkbox" ? el.checked : fromText(el)]));

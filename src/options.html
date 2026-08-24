@@ -75,7 +75,7 @@
 <details>
   <summary>Topics and naming</summary>
   <label>Your topics, one per line
-    <textarea data-key="categories" data-list rows="6"></textarea>
+    <textarea data-key="categories" data-kind="list" rows="6"></textarea>
   </label>
   <label>
     <input type="checkbox" role="switch" data-key="reuseExisting">
@@ -103,7 +103,7 @@
   <label><input type="checkbox" role="switch" data-key="skipPinned"> Leave pinned tabs alone</label>
   <label><input type="checkbox" role="switch" data-key="regroupExisting"> Also move tabs that are already in a group</label>
   <label>Never touch tabs matching these, one per line. Wrap a line in slashes for a pattern.
-    <textarea data-key="skipList" data-list rows="4" placeholder="mybank.com&#10;/localhost:\d+/"></textarea>
+    <textarea data-key="skipList" data-kind="list" rows="4" placeholder="mybank.com&#10;/localhost:\d+/"></textarea>
   </label>
 </details>
 
@@ -116,7 +116,7 @@
   <label><input type="checkbox" role="switch" data-key="sortInGroups"> Sort tabs inside a group by title</label>
   <label><input type="checkbox" role="switch" data-key="ungroupSingles"> Break up groups that end up too small</label>
   <label>Your own colours, one per line, as <code>Topic = colour</code>
-    <textarea data-key="colors" data-map rows="3" placeholder="Work = blue&#10;Fun = pink"></textarea>
+    <textarea data-key="colors" data-kind="map" rows="3" placeholder="Work = blue&#10;Fun = pink"></textarea>
   </label>
   <p class="muted">Colours: grey, blue, red, yellow, green, pink, purple, cyan, orange.</p>
 </details>
@@ -125,7 +125,7 @@
   <summary>Your own rules</summary>
   <p>A rule always beats the model. Write one per line as <code>what to match = group name</code>.</p>
   <label>Rules
-    <textarea data-key="rules" data-rules rows="4" placeholder="github.com = Code&#10;/invoice|receipt/ = Money"></textarea>
+    <textarea data-key="rules" data-kind="rules" rows="4" placeholder="github.com = Code&#10;/invoice|receipt/ = Money"></textarea>
   </label>
 </details>
 

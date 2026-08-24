@@ -39,9 +39,28 @@ export const DEFAULTS = {
   debug: false
 };
 
-export const getSettings = async () => ({ ...DEFAULTS, ...((await store.get("settings")).settings ?? {}) });
+const LISTS = ["categories", "skipList"];
+const MAPS = ["colors"];
 
-export const saveSettings = async (settings) => store.set({ settings: { ...DEFAULTS, ...settings } });
+const asList = (value) => (Array.isArray(value) ? value.map(String) : typeof value === "string" ? value.split("\n").map((line) => line.trim()).filter(Boolean) : []);
+const asMap = (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
+const asRules = (value) => (Array.isArray(value) ? value.filter((rule) => rule && typeof rule.match === "string" && rule.category) : []);
+const asNumber = (value, fallback) => (value === "" || value === null || !Number.isFinite(Number(value)) ? fallback : Number(value));
+
+// Settings saved by an older version, or by hand, must never break the add-on.
+export const repair = (raw) => {
+  const settings = { ...DEFAULTS, ...raw };
+  LISTS.forEach((key) => (settings[key] = asList(settings[key])));
+  MAPS.forEach((key) => (settings[key] = asMap(settings[key])));
+  settings.rules = asRules(settings.rules);
+  Object.keys(DEFAULTS).filter((key) => typeof DEFAULTS[key] === "number").forEach((key) => (settings[key] = asNumber(settings[key], DEFAULTS[key])));
+  Object.keys(DEFAULTS).filter((key) => typeof DEFAULTS[key] === "boolean").forEach((key) => (settings[key] = !!settings[key]));
+  return settings;
+};
+
+export const getSettings = async () => repair((await store.get("settings")).settings ?? {});
+
+export const saveSettings = async (settings) => store.set({ settings: repair(settings) });
 
 export const patchSettings = async (patch) => saveSettings({ ...(await getSettings()), ...patch });
 

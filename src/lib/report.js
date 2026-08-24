@@ -5,7 +5,7 @@ const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 const tabs = (n) => count(n, "tab", "tabs");
 
-const leftOut = (r, settings) => [
+const leftOut = (r) => [
   r.skipped.grouped && `${tabs(r.skipped.grouped)} already sit in a group. Turn on “Also move tabs that are already in a group” to include them.`,
   r.skipped.pinned && `${tabs(r.skipped.pinned)} are pinned. Turn off “Leave pinned tabs alone” to include them.`,
   r.skipped.listed && `${tabs(r.skipped.listed)} match your skip list.`,

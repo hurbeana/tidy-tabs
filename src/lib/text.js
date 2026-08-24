@@ -1,5 +1,5 @@
 // Small helpers for turning tabs into text and text into group names.
-export const tidyName = (name) => String(name ?? "").replace(/["'`]/g, "").replace(/[^\p{L}\p{N} &+/-]/gu, " ").trim().replace(/\s+/g, " ").split(" ").slice(0, 3).join(" ").slice(0, 24).replace(/^./, (c) => c.toUpperCase());
+export const tidyName = (name) => String(name ?? "").replace(/["'`]/g, "").replace(/[^\p{L}\p{N} .&+/-]/gu, " ").trim().replace(/\s+/g, " ").split(" ").slice(0, 3).join(" ").slice(0, 24).replace(/^./, (c) => c.toUpperCase());
 
 // What the model gets to see. The web address is always there; it is free and it helps.
 // A tab with no page text keeps its title, so nothing is ever left unlabelled.
