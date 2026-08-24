@@ -5,4 +5,3 @@ node_modules/
 src/vendor/
 .tools/
 node_modules/
-package-lock.json
