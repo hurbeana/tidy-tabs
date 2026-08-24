@@ -1,0 +1,53 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install the tools
+        run: npm ci
+
+      - name: Fetch the libraries the add-on ships
+        run: ./vendor.sh
+
+      - name: Read the code
+        run: npx eslint .
+
+      - name: Check the grouping logic
+        run: node test/run.mjs
+
+      - name: Check the wiring
+        run: node test/wiring.mjs
+
+      - name: Build both packages
+        run: ./build.sh
+
+      - name: Check the Firefox package the way Mozilla will
+        run: npx web-ext lint --source-dir dist/firefox --no-config-discovery
+
+      - name: Install a browser to test in
+        run: sudo apt-get update && sudo apt-get install -y chromium-browser || sudo snap install chromium
+
+      - name: Run the add-on in a real browser
+        run: xvfb-run --auto-servernum node test/browser.mjs
+        env:
+          CHROME: /usr/bin/chromium-browser
+
+      - name: Keep the packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: dist/*.zip
