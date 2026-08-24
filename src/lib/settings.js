@@ -5,8 +5,7 @@ const store = api.storage.sync ?? api.storage.local;
 
 export const DEFAULTS = {
   enabled: true,
-  groupOnNewTab: true,
-  groupOnInterval: false,
+  trigger: "load",
   intervalMinutes: 15,
   waitSeconds: 3,
   scope: "window",

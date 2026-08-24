@@ -142,12 +142,45 @@ await check("without permission it never asks a page for text", async () => {
 });
 
 
-await check("says so when the model cannot name anything", async () => {
+await check("says so when no model is available at all", async () => {
   load({ tabs: TABS });
   delete globalThis.LanguageModel;
   const result = await groupWindow(1, { ...DEFAULTS, model: "builtin", fallbackModel: "", fallbackToSite: false });
   assert.equal(result.groups, 0);
-  assert.match(result.note ?? "", /Get this model ready/);
+  assert.match(result.note ?? "", /no stand-in is set/);
+});
+
+await check("names the groups it made", async () => {
+  load({ tabs: TABS });
+  globalThis.LanguageModel = fakeLanguageModel(answerWith({ 0: "Code", 1: "Code", 2: "Shopping", 3: "Shopping" }));
+  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin" });
+  assert.match(result.note, /Made 2 groups from 4 tabs/);
+  assert.match(result.note, /Code \(2\)/);
+});
+
+await check("explains that every topic was too small", async () => {
+  load({ tabs: TABS });
+  globalThis.LanguageModel = fakeLanguageModel(answerWith({ 0: "One", 1: "Two", 2: "Three", 3: "Four" }));
+  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin", minTabsPerGroup: 2 });
+  assert.equal(result.groups, 0);
+  assert.match(result.note, /Every topic was too small/);
+  assert.match(result.note, /Fewest tabs a group may have/);
+  assert.match(result.note, /One \(1\)/);
+});
+
+await check("explains that every tab was already in a group", async () => {
+  load({ tabs: TABS, groups: [{ id: 9, title: "Mine", color: "red", windowId: 1 }] });
+  state.tabs.forEach((t) => (t.groupId = 9));
+  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin" });
+  assert.match(result.note, /already sit in a group/);
+  assert.match(result.note, /Also move tabs that are already in a group/);
+});
+
+await check("explains that pinned tabs were left alone", async () => {
+  load({ tabs: TABS });
+  state.tabs.forEach((t) => (t.pinned = true));
+  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin" });
+  assert.match(result.note, /are pinned/);
 });
 
 

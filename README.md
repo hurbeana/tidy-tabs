@@ -47,6 +47,9 @@ The store links go here once the add-on is published.
 
 Click the toolbar icon and press **Group my tabs now**. That is the whole thing.
 
+If nothing moves, read the sentence in the popup. It tells you why, and which
+setting to change.
+
 Press **Alt+Shift+G** to do the same without opening the popup.
 
 Open the settings page to change how it behaves.
@@ -93,6 +96,8 @@ The settings page holds every option. The main ones are:
   or all three. Titles only is the starting choice, because it is fastest and
   needs no extra permission. The other two ask your permission to look at
   pages. A page that cannot be read keeps its title, so no tab is left out.
+- **Fewest tabs a group may have.** Set this to 1 if Tidy Tabs keeps telling
+  you every topic was too small.
 
 You can copy your settings out as text and paste them back in later.
 
@@ -117,22 +122,33 @@ node test/run.mjs   # runs the checks against a pretend browser
 
 The code has no build step and no package manager. `src` is the extension.
 
-Two libraries are not kept in this repository, because they are large and are
-not our code. `vendor.sh` fetches them, pinned to an exact version and checked
-against a SHA-256 sum. `build.sh` runs it for you.
+Three libraries are not kept in this repository, because they are large and are
+not our code. `vendor.sh` fetches Transformers.js, ONNX Runtime, and Pico.css,
+each pinned to an exact version and checked against a SHA-256 sum. `build.sh`
+runs it for you.
+
+The settings page shows six things and hides the rest behind expanders. When
+Tidy Tabs does nothing, it says why: which tabs it skipped, which topics were
+too small, or what the model complained about. `src/lib/report.js` writes those
+sentences.
 
 | File | What it does |
 | --- | --- |
-| `src/background.js` | Decides when to tidy. |
-| `src/lib/group.js` | Collects tabs, then builds the groups. |
-| `src/lib/label.js` | Asks the model for a name for each tab. |
+| `src/background.js` | Decides when to tidy, and answers the two pages. |
+| `src/lib/group.js` | Runs one round: collect, name, build, report. |
+| `src/lib/tabs.js` | Picks the tabs worth sorting, and counts the rest. |
+| `src/lib/label.js` | Gets a name for each tab out of the model. |
+| `src/lib/prompt.js` | Writes the question, and reads the answer back. |
+| `src/lib/apply.js` | Turns names and tabs into real tab groups. |
+| `src/lib/report.js` | Says in plain words what a round did. |
+| `src/lib/text.js` | Small shared helpers for text and names. |
 | `src/lib/models.js` | The list of models you can pick. |
 | `src/lib/runtime.js` | Runs a model in Chrome or in Firefox. |
 | `src/lib/builtin.js` | Talks to the model your browser ships with. |
 | `src/lib/rules.js` | Your own rules and your skip list. |
 | `src/lib/settings.js` | Reads and writes your settings. |
 | `src/offscreen.js` | The hidden page where Chrome runs a model. |
-| `src/vendor/` | Transformers.js and ONNX Runtime, fetched by `vendor.sh`. |
+| `src/vendor/` | Transformers.js, ONNX Runtime, and Pico.css, fetched by `vendor.sh`. |
 
 The store rules say an add-on may not fetch code from the internet, so the
 runtime ships inside the package. That is why the Chrome build is about 6 MB.

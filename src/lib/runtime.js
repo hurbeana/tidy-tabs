@@ -5,8 +5,6 @@ export const kind = () => (api.trial?.ml ? "firefox" : api.offscreen ? "chrome" 
 
 export const needsPermission = async () => kind() === "firefox" && !(await api.permissions.contains({ permissions: ["trialML"] }).catch(() => true));
 
-export const askPermission = async () => api.permissions.request({ permissions: ["trialML"] });
-
 let ready = null;
 const OFFSCREEN = "offscreen.html";
 
@@ -24,8 +22,10 @@ const chromeRun = async (spec, task, args, options) => { await openOffscreen(); 
 // task is a Transformers.js pipeline name, such as feature-extraction or text-generation.
 export const run = async (spec, task, args, options = {}) => (kind() === "firefox" ? firefoxRun(spec, task, args, options) : chromeRun(spec, task, args, options));
 
-export const warmUp = async (spec, task) => run(spec, task, task === "feature-extraction" ? ["warm up"] : ["Say ok."], task === "text-generation" ? { max_new_tokens: 1 } : {}).then(() => true).catch(() => false);
+// Loads the model and runs one tiny job, so a broken setup fails here and not later.
+export const warmUp = async (spec, task) => { await run(spec, task, task === "zero-shot-classification" ? ["a warm up", ["one", "two"]] : [task === "feature-extraction" ? ["warm up"] : "Say ok."], task === "text-generation" ? { max_new_tokens: 1 } : {}); return true; };
+
+// Asks the hidden page what this computer can actually do.
+export const probe = async () => { if (kind() !== "chrome") return {}; await openOffscreen(); return sendOffscreen({ kind: "info" }).then((r) => r?.result ?? {}).catch(() => ({})); };
 
 export const forget = async () => { ready = null; if (kind() === "firefox") await api.trial.ml.deleteCachedModels?.(); else await sendOffscreen({ kind: "forget" }).catch(() => {}); };
-
-export const closeRuntime = async () => { ready = null; if (kind() === "chrome") await api.offscreen.closeDocument?.().catch(() => {}); };

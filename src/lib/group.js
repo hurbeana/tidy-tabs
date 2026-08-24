@@ -1,85 +1,51 @@
-// Collects your tabs, decides a topic for each one, then builds the groups.
+// Runs one round of tidying: collect the tabs, name them, build the groups, report back.
 import { api } from "./settings.js";
-import { labelTabs, tidyName } from "./label.js";
-import { isSkipped, ruleCategory } from "./rules.js";
+import { collect } from "./tabs.js";
+import { applyAll, hasTabGroups, lineUp, openGroupNames } from "./apply.js";
+import { labelTabs } from "./label.js";
+import { ruleCategory } from "./rules.js";
+import { countBy, tidyName } from "./text.js";
+import { explain } from "./report.js";
 
-const COLORS = ["blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange", "grey"];
-const NONE = -1;
+export { hasTabGroups };
 
-export const hasTabGroups = () => !!(api.tabs.group && api.tabGroups);
-
-const colorFor = (name, colors) => colors[name] ?? COLORS[[...name].reduce((n, c) => n + c.charCodeAt(0), 0) % COLORS.length];
-
-const hostOf = (url) => { try { return new URL(url).hostname; } catch { return ""; } };
-
-const readable = (tab) => /^https?:/.test(tab.url ?? "");
-
-const asTab = (tab) => ({ id: tab.id, title: tab.title ?? "", url: tab.url ?? "", host: hostOf(tab.url ?? ""), groupId: tab.groupId ?? NONE, pinned: tab.pinned, index: tab.index });
-
-const pageText = async (tabId, chars) => api.scripting.executeScript({ target: { tabId }, func: (max) => `${document.querySelector('meta[name="description"]')?.content ?? ""} ${document.querySelector("h1")?.innerText ?? ""} ${document.body?.innerText ?? ""}`.replace(/\s+/g, " ").trim().slice(0, max), args: [chars] }).then((r) => r[0]?.result ?? "").catch(() => "");
-
-const mayReadPages = async () => api.permissions.contains({ origins: ["<all_urls>"] }).catch(() => false);
-
-const pickTabs = (tabs, settings) => tabs.map(asTab).filter((t) => readable(t) && !(settings.skipPinned && t.pinned) && (settings.regroupExisting || t.groupId === NONE) && !isSkipped(t, settings.skipList));
-
-const addText = async (tabs, settings) => { if (settings.readMode === "title" || !(await mayReadPages())) return tabs; const texts = await Promise.all(tabs.map((t) => pageText(t.id, settings.pageTextChars))); return tabs.map((t, i) => ({ ...t, text: texts[i] })); };
-
+// Your own rules answer first. The model only sees what is left.
 const decide = async (tabs, settings, openGroups) => {
-  const named = tabs.map((t) => ruleCategory(t, settings.rules));
-  const rest = tabs.map((t, i) => (named[i] ? null : { ...t, at: i })).filter(Boolean);
-  const fromModel = rest.length ? await labelTabs(rest, settings, openGroups) : [];
-  rest.forEach((t, i) => { named[t.at] = fromModel?.[i] ?? null; });
-  return named.map((name) => (name ? tidyName(name) : null));
+  const named = tabs.map((tab) => ruleCategory(tab, settings.rules));
+  const rest = tabs.map((tab, i) => (named[i] ? null : { ...tab, at: i })).filter(Boolean);
+  const answer = rest.length ? await labelTabs(rest, settings, openGroups) : { using: "your own rules", names: [] };
+  rest.forEach((tab, i) => { named[tab.at] = answer.names?.[i] ?? null; });
+  return { names: named.map((name) => (name ? tidyName(name) : null)), using: answer.using, error: answer.error };
 };
 
-// A name that already has a group open is always allowed, however few tabs join it.
-const buckets = (tabs, names, settings, openGroups) => {
-  const open = new Set(openGroups.map((name) => name.toLowerCase()));
-  const map = new Map();
-  names.forEach((name, i) => name && map.set(name, [...(map.get(name) ?? []), tabs[i].id]));
-  return [...map].filter(([name, ids]) => ids.length >= settings.minTabsPerGroup || open.has(name.toLowerCase())).sort((a, b) => b[1].length - a[1].length).slice(0, settings.maxGroups);
-};
+const share = (tabs, names, name) => tabs.filter((_, i) => names[i] === name).map((tab) => tab.id);
 
-const existingGroups = async (windowId) => new Map((await api.tabGroups.query({ windowId })).map((g) => [(g.title ?? "").toLowerCase(), g.id]));
-
-const openGroupNames = async (windowId, settings) => (hasTabGroups() && settings.reuseExisting ? (await api.tabGroups.query({ windowId })).map((g) => g.title).filter(Boolean) : []);
-
-const applyGroup = async (name, tabIds, windowId, known, settings) => {
-  const groupId = known.get(name.toLowerCase());
-  const id = await api.tabs.group(groupId === undefined ? { tabIds, createProperties: { windowId } } : { tabIds, groupId });
-  known.set(name.toLowerCase(), id);
-  await api.tabGroups.update(id, { title: name, color: colorFor(name, settings.colors), ...(groupId === undefined && settings.collapseNewGroups ? { collapsed: true } : {}) });
-  if (settings.sortInGroups) await sortGroup(id);
-  return id;
-};
-
-const sortGroup = async (groupId) => { const tabs = (await api.tabs.query({ groupId })).sort((a, b) => (a.title ?? "").localeCompare(b.title ?? "")); await api.tabs.move(tabs.map((t) => t.id), { index: Math.min(...tabs.map((t) => t.index)) }); };
-
-// Only looks at groups this round built. Groups you made yourself are left alone.
-const dropSingles = async (touched, settings) => { if (!settings.ungroupSingles) return; for (const id of touched) { const tabs = await api.tabs.query({ groupId: id }); if (tabs.length && tabs.length < settings.minTabsPerGroup) await api.tabs.ungroup(tabs.map((t) => t.id)); } };
-
-// Falls back to simply parking same-topic tabs side by side when the browser has no tab groups.
-const lineUp = async (pairs) => { let index = 0; for (const [, ids] of pairs) { await api.tabs.move(ids, { index }); index += ids.length; } };
+const finish = (report, settings) => ({ ...report, note: explain(report, settings) });
 
 export const groupWindow = async (windowId, settings) => {
-  const tabs = await addText(pickTabs(await api.tabs.query({ windowId }), settings), settings);
-  if (!tabs.length) return { groups: 0, tabs: 0 };
+  const { total, skipped, chosen } = await collect(windowId, settings);
+  const blank = { total, skipped, considered: chosen.length, using: null, error: null, made: [], tooSmall: [], trimmed: [], lined: false, groups: 0, tabs: 0 };
+  if (!chosen.length) return finish(blank, settings);
+
   const openGroups = await openGroupNames(windowId, settings);
-  const names = await decide(tabs, settings, openGroups);
-  if (!names.some(Boolean)) return { groups: 0, tabs: 0, note: "The model could not name a single tab. Open the settings page and press “Get this model ready”." };
-  const pairs = buckets(tabs, names, settings, openGroups);
-  const moved = pairs.reduce((n, [, ids]) => n + ids.length, 0);
-  if (!hasTabGroups()) { await lineUp(pairs); return { groups: pairs.length, tabs: moved, lined: true }; }
-  const known = await existingGroups(windowId);
-  const touched = new Set();
-  for (const [name, ids] of pairs) await applyGroup(name, ids, windowId, known, settings).then((id) => touched.add(id), (e) => settings.debug && console.warn("Tidy Tabs: could not build the group.", name, e));
-  await dropSingles(touched, settings);
-  return { groups: pairs.length, tabs: moved };
+  const { names, using, error } = await decide(chosen, settings, openGroups);
+  if (error) return finish({ ...blank, using, error }, settings);
+
+  const open = new Set(openGroups.map((name) => name.toLowerCase()));
+  const all = countBy(names);
+  const big = all.filter(({ name, count }) => count >= settings.minTabsPerGroup || open.has(name.toLowerCase()));
+  const [keep, trimmed] = [big.slice(0, settings.maxGroups), big.slice(settings.maxGroups)];
+  const tooSmall = all.filter((topic) => !big.includes(topic));
+  const pairs = keep.map(({ name }) => [name, share(chosen, names, name)]);
+
+  if (!hasTabGroups()) { await lineUp(pairs); return finish({ ...blank, using, tooSmall, trimmed, lined: true, made: keep, groups: keep.length, tabs: keep.reduce((n, g) => n + g.count, 0) }, settings); }
+  const made = await applyAll(windowId, pairs, settings);
+  return finish({ ...blank, using, tooSmall, trimmed, made, groups: made.length, tabs: made.reduce((n, g) => n + g.count, 0) }, settings);
 };
 
 export const groupAll = async (settings, windowId) => {
   const ids = settings.scope === "all" || windowId === undefined ? (await api.windows.getAll({ windowTypes: ["normal"] })).map((w) => w.id) : [windowId];
-  const results = [];
-  for (const id of ids) results.push(await groupWindow(id, settings));
-  return results.reduce((sum, r) => ({ groups: sum.groups + r.groups, tabs: sum.tabs + r.tabs, lined: sum.lined || r.lined, note: sum.note ?? r.note }), { groups: 0, tabs: 0, lined: false });
+  const reports = [];
+  for (const id of ids) reports.push(await groupWindow(id, settings));
+  return reports.length === 1 ? reports[0] : { ...reports[0], groups: reports.reduce((n, r) => n + r.groups, 0), tabs: reports.reduce((n, r) => n + r.tabs, 0), note: reports.map((r) => r.note).join(" ") };
 };

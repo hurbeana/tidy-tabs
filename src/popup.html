@@ -1,13 +1,20 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>Tidy Tabs</title>
+<link rel="stylesheet" href="vendor/pico.classless.min.css">
 <link rel="stylesheet" href="ui.css">
 <body class="popup">
-  <h1>Tidy Tabs</h1>
-  <p id="state" class="muted">Checking…</p>
-  <button id="now" class="primary">Group my tabs now</button>
-  <label class="row"><input type="checkbox" id="enabled"> Tidy on its own</label>
-  <p id="result" class="muted" aria-live="polite"></p>
-  <a href="#" id="settings">Settings</a>
+  <h4>Tidy Tabs</h4>
+  <p class="muted" id="state">Checking…</p>
+
+  <button id="now">Group my tabs now</button>
+  <button class="secondary" id="setup" hidden>Set the model up</button>
+
+  <article><p class="result" id="result" aria-live="polite">Press the button to sort the tabs in this window.</p></article>
+
+  <footer>
+    <label><input type="checkbox" role="switch" id="enabled"> Tidy on its own</label>
+    <a href="#" id="settings">Settings</a>
+  </footer>
   <script type="module" src="popup.js"></script>
 </body>
