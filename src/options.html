@@ -1,0 +1,109 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Tidy Tabs settings</title>
+<link rel="stylesheet" href="ui.css">
+<body>
+<h1>Tidy Tabs settings</h1>
+<p>Tidy Tabs reads the titles of your open tabs and puts them into groups. Everything happens on your computer. Your tabs never leave it.</p>
+<p class="muted" id="save" aria-live="polite">Your changes save as you make them.</p>
+
+<fieldset>
+  <legend>When should Tidy Tabs work?</legend>
+  <label class="row"><input type="checkbox" data-key="enabled"> Tidy my tabs on its own</label>
+  <label class="row"><input type="checkbox" data-key="groupOnNewTab"> Tidy after a new page finishes loading</label>
+  <label class="stack"><span>Wait this many seconds first</span><input type="number" min="1" max="30" data-key="waitSeconds"></label>
+  <label class="row"><input type="checkbox" data-key="groupOnInterval"> Tidy every so often</label>
+  <label class="stack"><span>Minutes between rounds</span><input type="number" min="1" max="720" data-key="intervalMinutes"></label>
+  <p class="muted">You can also press Alt+Shift+G at any time.</p>
+</fieldset>
+
+<fieldset>
+  <legend>Which model should think about your tabs?</legend>
+  <label class="stack"><span>Model</span><select data-key="model" id="model"></select></label>
+  <p class="muted" id="blurb"></p>
+  <p class="note" id="modelState">Checking what your browser can do…</p>
+  <div class="buttons">
+    <button id="get">Get this model ready</button>
+    <button id="drop">Delete downloaded models</button>
+  </div>
+  <progress id="bar" value="0" max="100" hidden></progress>
+  <label class="stack"><span>If the built-in model is missing, use this instead</span><select data-key="fallbackModel" id="fallbackModel"></select></label>
+  <label class="row"><input type="checkbox" data-key="fallbackToSite"> If every model fails, group by website</label>
+</fieldset>
+
+<fieldset>
+  <legend>What should the groups be called?</legend>
+  <label class="stack"><span>How the model chooses names</span>
+    <select data-key="categoryMode">
+      <option value="hybrid">Start from my list, invent a name when nothing fits</option>
+      <option value="fixed">Only use names from my list</option>
+      <option value="free">Let the model invent every name</option>
+    </select></label>
+  <label class="stack"><span>Your list of topics, one per line</span><textarea data-key="categories" data-list></textarea></label>
+  <label class="row"><input type="checkbox" data-key="reuseExisting"> Reuse the names of groups you already have open</label>
+  <label class="stack"><span>How sure the model must be, from 0 to 100</span><input type="number" min="0" max="100" data-key="confidence"></label>
+  <label class="stack"><span>How alike two tabs must be to share a new group, from 0 to 100</span><input type="number" min="0" max="100" data-key="clusterThreshold"></label>
+</fieldset>
+
+<fieldset>
+  <legend>Which tabs should it touch?</legend>
+  <label class="stack"><span>Windows</span>
+    <select data-key="scope"><option value="window">Only the window I am using</option><option value="all">Every window</option></select></label>
+  <label class="row"><input type="checkbox" data-key="skipPinned"> Leave pinned tabs alone</label>
+  <label class="row"><input type="checkbox" data-key="regroupExisting"> Also move tabs that are already in a group</label>
+  <label class="stack"><span>Never touch tabs that match these, one per line. Wrap a line in slashes for a pattern.</span><textarea data-key="skipList" data-list placeholder="mybank.com&#10;/localhost:\d+/"></textarea></label>
+</fieldset>
+
+<fieldset>
+  <legend>How should the groups look?</legend>
+  <label class="stack"><span>Fewest tabs a group may have</span><input type="number" min="1" max="20" data-key="minTabsPerGroup"></label>
+  <label class="stack"><span>Most groups to make at once</span><input type="number" min="1" max="30" data-key="maxGroups"></label>
+  <label class="row"><input type="checkbox" data-key="collapseNewGroups"> Fold new groups shut</label>
+  <label class="row"><input type="checkbox" data-key="sortInGroups"> Sort tabs inside a group by title</label>
+  <label class="row"><input type="checkbox" data-key="ungroupSingles"> Break up groups that end up too small</label>
+  <label class="stack"><span>Your own colours, one per line, as <code>Topic = colour</code></span><textarea data-key="colors" data-map placeholder="Work = blue&#10;Fun = pink"></textarea></label>
+  <p class="muted">Colours you can use: grey, blue, red, yellow, green, pink, purple, cyan, orange.</p>
+</fieldset>
+
+<fieldset>
+  <legend>Your own rules</legend>
+  <p>A rule always wins over the model. Write one per line as <code>what to match = group name</code>.</p>
+  <label class="stack"><span>Rules</span><textarea data-key="rules" data-rules placeholder="github.com = Code&#10;/invoice|receipt/ = Money"></textarea></label>
+</fieldset>
+
+<fieldset>
+  <legend>Should it read the page as well as the title?</legend>
+  <p>Titles alone are usually enough. Reading the page text gives better groups but needs your permission to look at every site.</p>
+  <label class="row"><input type="checkbox" data-key="readPageText"> Read a little text from each page</label>
+  <label class="stack"><span>How many characters to read</span><input type="number" min="100" max="4000" step="100" data-key="pageTextChars"></label>
+  <div class="buttons"><button id="allow">Give permission to read pages</button></div>
+  <p class="muted" id="permState"></p>
+</fieldset>
+
+<fieldset>
+  <legend>Advanced</legend>
+  <label class="stack"><span>Tabs per question to the model</span><input type="number" min="1" max="40" data-key="batchSize"></label>
+  <label class="stack"><span>Model file type. Leave empty to let Tidy Tabs choose.</span>
+    <select data-key="dtype"><option value="">Choose for me</option><option>q4</option><option>q4f16</option><option>q8</option><option>fp16</option><option>fp32</option></select></label>
+  <label class="stack"><span>Where the model runs. Leave empty to let Tidy Tabs choose.</span>
+    <select data-key="device"><option value="">Choose for me</option><option value="webgpu">Graphics card</option><option value="wasm">Processor</option></select></label>
+  <label class="stack"><span>Your own model from Hugging Face</span><input type="text" data-key="customModelId" placeholder="onnx-community/Qwen3-0.6B-ONNX"></label>
+  <label class="stack"><span>What your model does</span>
+    <select data-key="customModelTask"><option value="generate">Writes group names</option><option value="zeroshot">Picks from my list</option><option value="embed">Compares meaning</option></select></label>
+  <label class="row"><input type="checkbox" data-key="showBadge"> Show the number of new groups on the toolbar button</label>
+  <label class="row"><input type="checkbox" data-key="debug"> Write notes to the console</label>
+</fieldset>
+
+<fieldset>
+  <legend>Your settings file</legend>
+  <div class="buttons">
+    <button id="export">Copy my settings</button>
+    <button id="import">Paste settings in</button>
+    <button id="reset">Start over</button>
+  </div>
+  <label class="stack"><span>Settings text</span><textarea id="json" spellcheck="false"></textarea></label>
+</fieldset>
+
+<p class="muted">Tidy Tabs is free software. It sends nothing to anyone.</p>
+<script type="module" src="options.js"></script>
+</body>

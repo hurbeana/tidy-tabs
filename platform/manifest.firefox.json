@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "Tidy Tabs — AI Tab Grouper",
+  "short_name": "Tidy Tabs",
+  "version": "1.0.0",
+  "description": "Groups your tabs by topic, automatically and fully on your device. Uses built-in AI when your browser has it.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "tidy-tabs@hurbeana",
+      "strict_min_version": "139.0"
+    }
+  },
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "storage",
+    "alarms",
+    "scripting"
+  ],
+  "optional_host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "type": "module"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Tidy Tabs"
+  },
+  "commands": {
+    "group-now": {
+      "suggested_key": {
+        "default": "Alt+Shift+G"
+      },
+      "description": "Group tabs now"
+    }
+  },
+  "optional_permissions": [
+    "trialML"
+  ]
+}

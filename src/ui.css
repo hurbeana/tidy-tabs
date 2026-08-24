@@ -1,0 +1,24 @@
+:root { color-scheme: light dark; --line: color-mix(in oklab, currentColor 18%, transparent); --soft: color-mix(in oklab, currentColor 6%, transparent); }
+* { box-sizing: border-box; }
+body { font: 15px/1.55 system-ui, sans-serif; margin: 0 auto; padding: 24px; max-width: 46rem; }
+body.popup { width: 20rem; max-width: none; padding: 16px; }
+h1 { font-size: 1.35rem; margin: 0 0 .5rem; }
+h2 { font-size: 1.05rem; margin: 2rem 0 .35rem; }
+p { margin: .35rem 0 .9rem; }
+.muted { opacity: .72; font-size: .9rem; }
+fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 0 0 18px; }
+legend { font-weight: 600; padding: 0 6px; }
+label.row { display: flex; align-items: center; gap: .55rem; margin: .45rem 0; }
+label.stack { display: block; margin: .8rem 0; }
+label.stack > span { display: block; margin-bottom: .25rem; }
+input[type=text], input[type=number], select, textarea { width: 100%; padding: .45rem .55rem; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); color: inherit; font: inherit; }
+input[type=number] { max-width: 8rem; }
+input[type=range] { width: 100%; }
+textarea { min-height: 5.5rem; resize: vertical; font-family: ui-monospace, monospace; font-size: .88rem; }
+button { padding: .5rem .9rem; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); color: inherit; font: inherit; cursor: pointer; }
+button.primary { background: #2f6f52; color: #fff; border-color: transparent; width: 100%; margin: .4rem 0; }
+button:hover { filter: brightness(1.08); }
+.buttons { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .6rem; }
+.note { border-left: 3px solid var(--line); padding-left: .8rem; }
+progress { width: 100%; }
+a { color: inherit; }
