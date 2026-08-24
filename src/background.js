@@ -7,51 +7,136 @@ import { modelSpec } from "./lib/models.js";
 import { shortly } from "./lib/report.js";
 
 const ALARM = "tidy-tabs";
+const BADGE_SECONDS = 4;
+const HEARTBEAT_SECONDS = 20;
+const LONGEST_WAIT = 30;
+
 let waiting = null;
 let busy = false;
 let last = null;
 
-const flash = async (text, settings) => { if (!settings.showBadge) return; await api.action.setBadgeBackgroundColor({ color: "#2f6f52" }).catch(() => {}); await api.action.setBadgeText({ text }).catch(() => {}); setTimeout(() => { try { api.action.setBadgeText({ text: "" }).catch(() => {}); } catch { /* the browser is closing */ } }, 4000); };
+async function flash(text, settings) {
+  if (!settings.showBadge) return;
 
-const keepAwake = () => { const beat = setInterval(() => { try { api.runtime.getPlatformInfo().catch(() => {}); } catch { /* the browser is closing */ } }, 20000); return () => clearInterval(beat); };
+  await api.action.setBadgeBackgroundColor({ color: "#2f6f52" }).catch(() => {});
+  await api.action.setBadgeText({ text }).catch(() => {});
 
-const tidy = async (windowId, why) => {
+  setTimeout(() => {
+    try {
+      api.action.setBadgeText({ text: "" }).catch(() => {});
+    } catch { /* the browser is closing */ }
+  }, BADGE_SECONDS * 1000);
+}
+
+// A worker that falls asleep mid-round would leave the popup waiting for ever.
+function keepAwake() {
+  const beat = setInterval(() => {
+    try {
+      api.runtime.getPlatformInfo().catch(() => {});
+    } catch { /* the browser is closing */ }
+  }, HEARTBEAT_SECONDS * 1000);
+
+  return () => clearInterval(beat);
+}
+
+async function tidy(windowId, why) {
   const settings = await getSettings();
-  if (busy || (!settings.enabled && why !== "manual")) return null;
+  if (busy) return null;
+  if (!settings.enabled && why !== "manual") return null;
+
   busy = true;
   const rest = keepAwake();
+
   try {
     last = { at: Date.now(), why, ...(await groupAll(settings, windowId)) };
     if (last.groups) await flash(String(last.groups), settings);
     if (settings.debug) console.log(`Tidy Tabs (${why}): ${shortly(last)} — ${last.note}`);
     return last;
   } catch (error) {
-    last = { at: Date.now(), why, groups: 0, tabs: 0, error: String(error?.message ?? error), note: `Something went wrong: ${error?.message ?? error}` };
+    const trouble = String(error?.message ?? error);
+    last = { at: Date.now(), why, groups: 0, tabs: 0, error: trouble, note: `Something went wrong: ${trouble}` };
     if (settings.debug) console.warn("Tidy Tabs failed.", error);
     return last;
-  } finally { busy = false; rest(); }
-};
+  } finally {
+    busy = false;
+    rest();
+  }
+}
 
-const soon = async (windowId) => { const { waitSeconds } = await getSettings(); clearTimeout(waiting); waiting = setTimeout(() => tidy(windowId, "a page loaded"), Math.min(Math.max(waitSeconds, 1), 30) * 1000); };
+// Pages arrive in bursts, so hold off until they stop for a moment.
+async function soon(windowId) {
+  const { waitSeconds } = await getSettings();
+  const seconds = Math.min(Math.max(waitSeconds, 1), LONGEST_WAIT);
 
-const setAlarm = async () => { const s = await getSettings(); await api.alarms.clear(ALARM); if (s.enabled && s.trigger === "timer") await api.alarms.create(ALARM, { periodInMinutes: Math.max(s.intervalMinutes, 1) }); };
+  clearTimeout(waiting);
+  waiting = setTimeout(() => tidy(windowId, "a page loaded"), seconds * 1000);
+}
 
-api.alarms.onAlarm.addListener((alarm) => alarm.name === ALARM && tidy(undefined, "the timer"));
+async function setAlarm() {
+  const settings = await getSettings();
+  await api.alarms.clear(ALARM);
+  if (settings.enabled && settings.trigger === "timer") {
+    await api.alarms.create(ALARM, { periodInMinutes: Math.max(settings.intervalMinutes, 1) });
+  }
+}
 
-api.tabs.onUpdated.addListener(async (_id, change, tab) => { const s = await getSettings(); if (s.enabled && s.trigger === "load" && change.status === "complete" && tab.url?.startsWith("http")) soon(tab.windowId); });
+api.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === ALARM) tidy(undefined, "the timer");
+});
 
-api.commands?.onCommand.addListener((name) => name === "group-now" && tidy(undefined, "manual"));
+api.tabs.onUpdated.addListener(async (_tabId, change, tab) => {
+  const settings = await getSettings();
+  const worthTidying = settings.enabled && settings.trigger === "load" && change.status === "complete";
+  if (worthTidying && tab.url?.startsWith("http")) soon(tab.windowId);
+});
 
-api.runtime.onInstalled.addListener(async (details) => { await setAlarm(); if (details.reason === "install") await api.runtime.openOptionsPage(); });
+api.commands?.onCommand.addListener((name) => {
+  if (name === "group-now") tidy(undefined, "manual");
+});
+
+api.runtime.onInstalled.addListener(async (details) => {
+  await setAlarm();
+  if (details.reason === "install") await api.runtime.openOptionsPage();
+});
 
 api.runtime.onStartup?.addListener(setAlarm);
 
 onSettingsChanged(setAlarm);
 
-const status = async () => { const settings = await getSettings(); return { builtin: await builtinStatus(), runtime: kind(), needsPermission: await needsPermission(), hasTabGroups: hasTabGroups(), model: modelSpec(settings), busy, last }; };
+async function status() {
+  const settings = await getSettings();
+  return {
+    builtin: await builtinStatus(),
+    runtime: kind(),
+    needsPermission: await needsPermission(),
+    hasTabGroups: hasTabGroups(),
+    model: modelSpec(settings),
+    busy,
+    last
+  };
+}
 
-const answer = async (message) => ({ "group-now": () => tidy(message.windowId, "manual"), status, probe, forget, "open-runtime": openRuntime })[message.type]?.();
+const ANSWERS = {
+  status,
+  probe,
+  forget,
+  "open-runtime": openRuntime,
+  "group-now": (message) => tidy(message.windowId, "manual")
+};
 
-api.runtime.onMessage.addListener((message, _sender, reply) => { if (!message?.type || message.target) return false; answer(message).then((result) => reply({ ok: true, result }), (error) => reply({ ok: false, error: String(error?.message ?? error) })); return true; });
+api.runtime.onMessage.addListener((message, _sender, reply) => {
+  // Messages with a target belong to the hidden page, not here.
+  if (!message?.type || message.target) return false;
+
+  const answer = ANSWERS[message.type];
+  if (!answer) return false;
+
+  Promise.resolve(answer(message)).then(
+    (result) => reply({ ok: true, result }),
+    (error) => reply({ ok: false, error: String(error?.message ?? error) })
+  );
+
+  return true;
+});
 
 setAlarm();

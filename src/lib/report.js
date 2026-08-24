@@ -1,42 +1,77 @@
 // Says in plain words what a round of tidying did, and what to change when it did nothing.
 import { listOf } from "./text.js";
 
-const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+function count(howMany, one, many) {
+  return `${howMany} ${howMany === 1 ? one : many}`;
+}
 
-const tabs = (n) => count(n, "tab", "tabs");
+const tabs = (howMany) => count(howMany, "tab", "tabs");
 
-const leftOut = (r) => [
-  r.skipped.grouped && `${tabs(r.skipped.grouped)} already sit in a group. Turn on “Also move tabs that are already in a group” to include them.`,
-  r.skipped.pinned && `${tabs(r.skipped.pinned)} are pinned. Turn off “Leave pinned tabs alone” to include them.`,
-  r.skipped.listed && `${tabs(r.skipped.listed)} match your skip list.`,
-  r.skipped.other && `${tabs(r.skipped.other)} are browser pages, which cannot be grouped.`
-].filter(Boolean);
+const totalTabs = (groups) => groups.reduce((sum, group) => sum + group.count, 0);
 
-const madeStory = (r) => {
-  const joined = r.made.filter((g) => g.reused);
-  return [
-    `Made ${count(r.made.length, "group", "groups")} from ${tabs(r.made.reduce((n, g) => n + g.count, 0))}: ${listOf(r.made)}.`,
-    joined.length ? `${count(joined.length, "group was", "groups were")} one you already had open.` : "",
-    r.lined ? "This browser has no tab groups, so matching tabs were parked side by side instead." : ""
-  ].filter(Boolean).join(" ");
-};
+// Why nothing was left to sort, and what to change to include those tabs.
+function reasonsForSkipping(report) {
+  const { grouped, pinned, listed, other } = report.skipped;
+  const reasons = [];
 
-const nothingStory = (r, settings) => {
-  if (r.tooSmall.length) return `Every topic was too small to become a group: ${listOf(r.tooSmall)}. Lower “Fewest tabs a group may have”, which is set to ${settings.minTabsPerGroup}.`;
-  return `${r.using ?? "The model"} looked at ${tabs(r.considered)} and named none of them. Open the settings page and press “Get this model ready”.`;
-};
+  if (grouped) reasons.push(`${tabs(grouped)} already sit in a group. Turn on “Also move tabs that are already in a group” to include them.`);
+  if (pinned) reasons.push(`${tabs(pinned)} are pinned. Turn off “Leave pinned tabs alone” to include them.`);
+  if (listed) reasons.push(`${tabs(listed)} match your skip list.`);
+  if (other) reasons.push(`${tabs(other)} are browser pages, which cannot be grouped.`);
 
-export const explain = (r, settings) => {
-  if (r.error) return `The model could not answer: ${r.error}`;
-  if (!r.total) return "There are no tabs in this window.";
-  if (!r.considered) return `Nothing was left to sort. ${leftOut(r, settings).join(" ") || "Every tab was skipped."}`;
-  const main = r.made.length ? madeStory(r) : nothingStory(r, settings);
-  const extra = [
-    r.made.length && r.tooSmall.length ? `${count(r.tooSmall.length, "topic was", "topics were")} too small to bother with: ${listOf(r.tooSmall)}.` : "",
-    r.trimmed?.length ? `${count(r.trimmed.length, "more topic was", "more topics were")} dropped because you allow at most ${settings.maxGroups} groups: ${listOf(r.trimmed)}.` : ""
-  ].filter(Boolean);
-  return [main, ...extra].join(" ");
-};
+  return reasons;
+}
 
-// A one-line version for the toolbar badge and the console.
-export const shortly = (r) => (r.error ? "failed" : r.made.length ? `${r.made.length} group(s), ${r.made.reduce((n, g) => n + g.count, 0)} tab(s)` : "nothing moved");
+function whatWasMade(report) {
+  const reused = report.made.filter((group) => group.reused);
+  const sentences = [`Made ${count(report.made.length, "group", "groups")} from ${tabs(totalTabs(report.made))}: ${listOf(report.made)}.`];
+
+  if (reused.length) sentences.push(`${count(reused.length, "group was", "groups were")} one you already had open.`);
+  if (report.lined) sentences.push("This browser has no tab groups, so matching tabs were parked side by side instead.");
+
+  return sentences.join(" ");
+}
+
+function whyNothingWasMade(report, settings) {
+  if (report.tooSmall.length) {
+    return `Every topic was too small to become a group: ${listOf(report.tooSmall)}. `
+      + `Lower “Fewest tabs a group may have”, which is set to ${settings.minTabsPerGroup}.`;
+  }
+
+  return `${report.using ?? "The model"} looked at ${tabs(report.considered)} and named none of them. `
+    + "Open the settings page and press “Get this model ready”.";
+}
+
+// Anything worth adding after the main sentence.
+function asides(report, settings) {
+  const extra = [];
+
+  if (report.made.length && report.tooSmall.length) {
+    extra.push(`${count(report.tooSmall.length, "topic was", "topics were")} too small to bother with: ${listOf(report.tooSmall)}.`);
+  }
+  if (report.trimmed?.length) {
+    extra.push(`${count(report.trimmed.length, "more topic was", "more topics were")} dropped because you allow at most ${settings.maxGroups} groups: ${listOf(report.trimmed)}.`);
+  }
+
+  return extra;
+}
+
+export function explain(report, settings) {
+  if (report.error) return `The model could not answer: ${report.error}`;
+  if (!report.total) return "There are no tabs in this window.";
+
+  if (!report.considered) {
+    const reasons = reasonsForSkipping(report);
+    return `Nothing was left to sort. ${reasons.length ? reasons.join(" ") : "Every tab was skipped."}`;
+  }
+
+  const main = report.made.length ? whatWasMade(report) : whyNothingWasMade(report, settings);
+  return [main, ...asides(report, settings)].join(" ");
+}
+
+// A short version for the console.
+export function shortly(report) {
+  if (report.error) return "failed";
+  if (!report.made.length) return "nothing moved";
+  return `${report.made.length} group(s), ${totalTabs(report.made)} tab(s)`;
+}

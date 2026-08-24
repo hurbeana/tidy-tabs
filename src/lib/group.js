@@ -10,42 +10,92 @@ import { explain } from "./report.js";
 export { hasTabGroups };
 
 // Your own rules answer first. The model only sees what is left.
-const decide = async (tabs, settings, openGroups) => {
-  const named = tabs.map((tab) => ruleCategory(tab, settings.rules));
-  const rest = tabs.map((tab, i) => (named[i] ? null : { ...tab, at: i })).filter(Boolean);
-  const answer = rest.length ? await labelTabs(rest, settings, openGroups) : { using: "your own rules", names: [] };
-  rest.forEach((tab, i) => { named[tab.at] = answer.names?.[i] ?? null; });
-  return { names: named.map((name) => (name ? tidyName(name) : null)), using: answer.using, error: answer.error };
-};
+async function decide(tabs, settings, openGroups) {
+  const names = tabs.map((tab) => ruleCategory(tab, settings.rules));
+  const forTheModel = tabs
+    .map((tab, index) => ({ ...tab, index }))
+    .filter((tab) => !names[tab.index]);
 
-const share = (tabs, names, name) => tabs.filter((_, i) => names[i] === name).map((tab) => tab.id);
+  if (!forTheModel.length) return { names: names.map((name) => tidyName(name)), using: "your own rules" };
 
-const finish = (report, settings) => ({ ...report, note: explain(report, settings) });
+  const answer = await labelTabs(forTheModel, settings, openGroups);
+  forTheModel.forEach((tab, i) => {
+    names[tab.index] = answer.names?.[i] ?? null;
+  });
 
-export const groupWindow = async (windowId, settings) => {
+  return {
+    names: names.map((name) => (name ? tidyName(name) : null)),
+    using: answer.using,
+    error: answer.error
+  };
+}
+
+const idsNamed = (tabs, names, wanted) => tabs.filter((_, i) => names[i] === wanted).map((tab) => tab.id);
+
+// A topic becomes a group if enough tabs share it, or if that group is already open.
+function sortTopics(names, openGroups, settings) {
+  const open = new Set(openGroups.map((name) => name.toLowerCase()));
+  const everyTopic = countBy(names);
+
+  const bigEnough = everyTopic.filter(({ name, count }) => count >= settings.minTabsPerGroup || open.has(name.toLowerCase()));
+
+  return {
+    keep: bigEnough.slice(0, settings.maxGroups),
+    trimmed: bigEnough.slice(settings.maxGroups),
+    tooSmall: everyTopic.filter((topic) => !bigEnough.includes(topic))
+  };
+}
+
+const withNote = (report, settings) => ({ ...report, note: explain(report, settings) });
+
+const countTabs = (topics) => topics.reduce((sum, topic) => sum + topic.count, 0);
+
+export async function groupWindow(windowId, settings) {
   const { total, skipped, chosen } = await collect(windowId, settings);
-  const blank = { total, skipped, considered: chosen.length, using: null, error: null, made: [], tooSmall: [], trimmed: [], lined: false, groups: 0, tabs: 0 };
-  if (!chosen.length) return finish(blank, settings);
+  const blank = {
+    total, skipped, considered: chosen.length,
+    using: null, error: null,
+    made: [], tooSmall: [], trimmed: [], lined: false,
+    groups: 0, tabs: 0
+  };
+
+  if (!chosen.length) return withNote(blank, settings);
 
   const openGroups = await openGroupNames(windowId, settings);
   const { names, using, error } = await decide(chosen, settings, openGroups);
-  if (error) return finish({ ...blank, using, error }, settings);
+  if (error) return withNote({ ...blank, using, error }, settings);
 
-  const open = new Set(openGroups.map((name) => name.toLowerCase()));
-  const all = countBy(names);
-  const big = all.filter(({ name, count }) => count >= settings.minTabsPerGroup || open.has(name.toLowerCase()));
-  const [keep, trimmed] = [big.slice(0, settings.maxGroups), big.slice(settings.maxGroups)];
-  const tooSmall = all.filter((topic) => !big.includes(topic));
-  const pairs = keep.map(({ name }) => [name, share(chosen, names, name)]);
+  const { keep, trimmed, tooSmall } = sortTopics(names, openGroups, settings);
+  const pairs = keep.map(({ name }) => [name, idsNamed(chosen, names, name)]);
+  const partial = { ...blank, using, tooSmall, trimmed };
 
-  if (!hasTabGroups()) { await lineUp(pairs); return finish({ ...blank, using, tooSmall, trimmed, lined: true, made: keep, groups: keep.length, tabs: keep.reduce((n, g) => n + g.count, 0) }, settings); }
+  if (!hasTabGroups()) {
+    await lineUp(pairs);
+    return withNote({ ...partial, lined: true, made: keep, groups: keep.length, tabs: countTabs(keep) }, settings);
+  }
+
   const made = await applyAll(windowId, pairs, settings);
-  return finish({ ...blank, using, tooSmall, trimmed, made, groups: made.length, tabs: made.reduce((n, g) => n + g.count, 0) }, settings);
-};
+  return withNote({ ...partial, made, groups: made.length, tabs: countTabs(made) }, settings);
+}
 
-export const groupAll = async (settings, windowId) => {
-  const ids = settings.scope === "all" || windowId === undefined ? (await api.windows.getAll({ windowTypes: ["normal"] })).map((w) => w.id) : [windowId];
+async function windowsToTidy(settings, windowId) {
+  const everyWindow = settings.scope === "all" || windowId === undefined;
+  if (!everyWindow) return [windowId];
+
+  const windows = await api.windows.getAll({ windowTypes: ["normal"] });
+  return windows.map((one) => one.id);
+}
+
+export async function groupAll(settings, windowId) {
   const reports = [];
-  for (const id of ids) reports.push(await groupWindow(id, settings));
-  return reports.length === 1 ? reports[0] : { ...reports[0], groups: reports.reduce((n, r) => n + r.groups, 0), tabs: reports.reduce((n, r) => n + r.tabs, 0), note: reports.map((r) => r.note).join(" ") };
-};
+  for (const id of await windowsToTidy(settings, windowId)) reports.push(await groupWindow(id, settings));
+
+  if (reports.length === 1) return reports[0];
+
+  return {
+    ...reports[0],
+    groups: reports.reduce((sum, report) => sum + report.groups, 0),
+    tabs: reports.reduce((sum, report) => sum + report.tabs, 0),
+    note: reports.map((report) => report.note).join(" ")
+  };
+}

@@ -3,38 +3,85 @@ import { api } from "./settings.js";
 
 const COLORS = ["blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange", "grey"];
 
-export const hasTabGroups = () => !!(api.tabs.group && api.tabGroups);
+export function hasTabGroups() {
+  return Boolean(api.tabs.group && api.tabGroups);
+}
 
-const colorFor = (name, colors) => colors[name] ?? COLORS[[...name].reduce((n, c) => n + c.charCodeAt(0), 0) % COLORS.length];
+// The same name always gets the same colour, unless you chose one yourself.
+function colorFor(name, chosenColors) {
+  if (chosenColors[name]) return chosenColors[name];
+  const total = [...name].reduce((sum, letter) => sum + letter.charCodeAt(0), 0);
+  return COLORS[total % COLORS.length];
+}
 
-export const openGroupNames = async (windowId, settings) => (hasTabGroups() && settings.reuseExisting ? (await api.tabGroups.query({ windowId })).map((g) => g.title).filter(Boolean) : []);
+export async function openGroupNames(windowId, settings) {
+  if (!hasTabGroups() || !settings.reuseExisting) return [];
+  const groups = await api.tabGroups.query({ windowId });
+  return groups.map((group) => group.title).filter(Boolean);
+}
 
-const knownGroups = async (windowId) => new Map((await api.tabGroups.query({ windowId })).map((g) => [(g.title ?? "").toLowerCase(), g.id]));
+async function groupsByName(windowId) {
+  const groups = await api.tabGroups.query({ windowId });
+  return new Map(groups.map((group) => [(group.title ?? "").toLowerCase(), group.id]));
+}
 
-const sortGroup = async (groupId) => { const tabs = (await api.tabs.query({ groupId })).sort((a, b) => (a.title ?? "").localeCompare(b.title ?? "")); await api.tabs.move(tabs.map((t) => t.id), { index: Math.min(...tabs.map((t) => t.index)) }); };
+async function sortGroup(groupId) {
+  const tabs = await api.tabs.query({ groupId });
+  const firstPlace = Math.min(...tabs.map((tab) => tab.index));
+  const byTitle = tabs.sort((a, b) => (a.title ?? "").localeCompare(b.title ?? ""));
+  await api.tabs.move(byTitle.map((tab) => tab.id), { index: firstPlace });
+}
 
-const buildOne = async (name, tabIds, windowId, known, settings) => {
+async function buildOne(name, tabIds, windowId, known, settings) {
   const existing = known.get(name.toLowerCase());
-  const id = await api.tabs.group(existing === undefined ? { tabIds, createProperties: { windowId } } : { tabIds, groupId: existing });
+  const isNew = existing === undefined;
+
+  const id = await api.tabs.group(isNew ? { tabIds, createProperties: { windowId } } : { tabIds, groupId: existing });
   known.set(name.toLowerCase(), id);
-  await api.tabGroups.update(id, { title: name, color: colorFor(name, settings.colors), ...(existing === undefined && settings.collapseNewGroups ? { collapsed: true } : {}) });
+
+  const look = { title: name, color: colorFor(name, settings.colors) };
+  if (isNew && settings.collapseNewGroups) look.collapsed = true;
+  await api.tabGroups.update(id, look);
+
   if (settings.sortInGroups) await sortGroup(id);
-  return { id, reused: existing !== undefined };
-};
+  return { id, reused: !isNew };
+}
 
 // Only looks at groups this round built. Groups you made yourself are left alone.
-const dropSingles = async (touched, settings) => { if (!settings.ungroupSingles) return; for (const id of touched) { const tabs = await api.tabs.query({ groupId: id }); if (tabs.length && tabs.length < settings.minTabsPerGroup) await api.tabs.ungroup(tabs.map((t) => t.id)); } };
+async function dropSingles(touched, settings) {
+  if (!settings.ungroupSingles) return;
+
+  for (const id of touched) {
+    const tabs = await api.tabs.query({ groupId: id });
+    if (tabs.length && tabs.length < settings.minTabsPerGroup) await api.tabs.ungroup(tabs.map((tab) => tab.id));
+  }
+}
 
 // A browser with no tab groups gets the next best thing: same-topic tabs side by side.
-export const lineUp = async (pairs) => { let index = 0; for (const [, ids] of pairs) { await api.tabs.move(ids, { index }); index += ids.length; } };
+export async function lineUp(pairs) {
+  let index = 0;
+  for (const [, tabIds] of pairs) {
+    await api.tabs.move(tabIds, { index });
+    index += tabIds.length;
+  }
+}
 
-export const applyAll = async (windowId, pairs, settings) => {
-  const known = await knownGroups(windowId);
+export async function applyAll(windowId, pairs, settings) {
+  const known = await groupsByName(windowId);
   const touched = new Set();
   const made = [];
-  for (const [name, ids] of pairs) {
-    await buildOne(name, ids, windowId, known, settings).then(({ id, reused }) => { touched.add(id); made.push({ name, count: ids.length, reused }); }, (error) => settings.debug && console.warn("Tidy Tabs: could not build the group.", name, error));
+
+  for (const [name, tabIds] of pairs) {
+    try {
+      const { id, reused } = await buildOne(name, tabIds, windowId, known, settings);
+      touched.add(id);
+      made.push({ name, count: tabIds.length, reused });
+    } catch (error) {
+      // One group failing should not stop the rest.
+      if (settings.debug) console.warn("Tidy Tabs: could not build the group.", name, error);
+    }
   }
+
   await dropSingles(touched, settings);
   return made;
-};
+}

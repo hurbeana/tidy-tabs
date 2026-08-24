@@ -4,27 +4,75 @@ import { isSkipped } from "./rules.js";
 
 export const NONE = -1;
 
-const hostOf = (url) => { try { return new URL(url).hostname; } catch { return ""; } };
+function hostOf(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
 
-const asTab = (tab) => ({ id: tab.id, title: tab.title ?? "", url: tab.url ?? "", host: hostOf(tab.url ?? ""), groupId: tab.groupId ?? NONE, pinned: tab.pinned, index: tab.index });
+function asTab(tab) {
+  return {
+    id: tab.id,
+    title: tab.title ?? "",
+    url: tab.url ?? "",
+    host: hostOf(tab.url ?? ""),
+    groupId: tab.groupId ?? NONE,
+    pinned: tab.pinned,
+    index: tab.index
+  };
+}
 
-const readPage = async (tabId, chars) => api.scripting.executeScript({ target: { tabId }, func: (max) => `${document.querySelector('meta[name="description"]')?.content ?? ""} ${document.querySelector("h1")?.innerText ?? ""} ${document.body?.innerText ?? ""}`.replace(/\s+/g, " ").trim().slice(0, max), args: [chars] }).then((r) => r[0]?.result ?? "").catch(() => "");
+// Runs inside the page itself. Anything it cannot find simply comes back empty.
+function grabText(max) {
+  const description = document.querySelector('meta[name="description"]')?.content ?? "";
+  const heading = document.querySelector("h1")?.innerText ?? "";
+  const body = document.body?.innerText ?? "";
+  return `${description} ${heading} ${body}`.replace(/\s+/g, " ").trim().slice(0, max);
+}
 
-export const mayReadPages = async () => api.permissions.contains({ origins: ["<all_urls>"] }).catch(() => false);
+// A sleeping tab, a PDF, or a page you have not allowed all give nothing back.
+async function readPage(tabId, chars) {
+  try {
+    const results = await api.scripting.executeScript({ target: { tabId }, func: grabText, args: [chars] });
+    return results[0]?.result ?? "";
+  } catch {
+    return "";
+  }
+}
 
-const addText = async (tabs, settings) => { if (settings.readMode === "title" || !(await mayReadPages())) return tabs; const texts = await Promise.all(tabs.map((tab) => readPage(tab.id, settings.pageTextChars))); return tabs.map((tab, i) => ({ ...tab, text: texts[i] })); };
+export function mayReadPages() {
+  return api.permissions.contains({ origins: ["<all_urls>"] }).catch(() => false);
+}
+
+async function addPageText(tabs, settings) {
+  if (settings.readMode === "title") return tabs;
+  if (!(await mayReadPages())) return tabs;
+
+  const texts = await Promise.all(tabs.map((tab) => readPage(tab.id, settings.pageTextChars)));
+  return tabs.map((tab, i) => ({ ...tab, text: texts[i] }));
+}
 
 // Why a tab was left out, or null when it was kept.
-const reasonToSkip = (tab, settings) =>
-  !/^https?:/.test(tab.url) ? "other"
-    : settings.skipPinned && tab.pinned ? "pinned"
-      : !settings.regroupExisting && tab.groupId !== NONE ? "grouped"
-        : isSkipped(tab, settings.skipList) ? "listed"
-          : null;
+function reasonToSkip(tab, settings) {
+  if (!/^https?:/.test(tab.url)) return "other";
+  if (settings.skipPinned && tab.pinned) return "pinned";
+  if (!settings.regroupExisting && tab.groupId !== NONE) return "grouped";
+  if (isSkipped(tab, settings.skipList)) return "listed";
+  return null;
+}
 
-export const collect = async (windowId, settings) => {
+export async function collect(windowId, settings) {
   const all = (await api.tabs.query({ windowId })).map(asTab);
   const skipped = { pinned: 0, grouped: 0, listed: 0, other: 0 };
-  const kept = all.filter((tab) => { const why = reasonToSkip(tab, settings); if (why) skipped[why]++; return !why; });
-  return { total: all.length, skipped, chosen: await addText(kept, settings) };
-};
+  const kept = [];
+
+  for (const tab of all) {
+    const why = reasonToSkip(tab, settings);
+    if (why) skipped[why]++;
+    else kept.push(tab);
+  }
+
+  return { total: all.length, skipped, chosen: await addPageText(kept, settings) };
+}

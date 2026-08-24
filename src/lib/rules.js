@@ -1,22 +1,51 @@
 // Your own rules only. Nothing here is guessed for you.
-const matches = (pattern, tab) => { const p = (pattern ?? "").trim().toLowerCase(); return !!p && (p.startsWith("/") && p.endsWith("/") ? safeRegex(p.slice(1, -1), tab) : tab.host.includes(p) || tab.url.toLowerCase().includes(p) || tab.title.toLowerCase().includes(p)); };
 
-const safeRegex = (source, tab) => { try { return new RegExp(source, "i").test(`${tab.url} ${tab.title}`); } catch { return false; } };
+// A rule wrapped in slashes is a pattern. Anything else is plain text to look for.
+function matches(pattern, tab) {
+  const wanted = (pattern ?? "").trim().toLowerCase();
+  if (!wanted) return false;
 
-export const isSkipped = (tab, skipList = []) => skipList.some((p) => matches(p, tab));
+  if (wanted.startsWith("/") && wanted.endsWith("/")) return matchesPattern(wanted.slice(1, -1), tab);
 
-export const ruleCategory = (tab, rules = []) => rules.find((r) => matches(r.match, tab))?.category ?? null;
+  return tab.host.includes(wanted)
+    || tab.url.toLowerCase().includes(wanted)
+    || tab.title.toLowerCase().includes(wanted);
+}
 
-// Last resort when you turn every model off: the website name.
+// A pattern you typed by hand can be nonsense, so a bad one simply never matches.
+function matchesPattern(source, tab) {
+  try {
+    return new RegExp(source, "i").test(`${tab.url} ${tab.title}`);
+  } catch {
+    return false;
+  }
+}
+
+export function isSkipped(tab, skipList = []) {
+  return skipList.some((pattern) => matches(pattern, tab));
+}
+
+export function ruleCategory(tab, rules = []) {
+  return rules.find((rule) => matches(rule.match, tab))?.category ?? null;
+}
+
+const capitalise = (word) => word.replace(/^./, (first) => first.toUpperCase());
+
+// The last resort, used when you turn every model off.
+//
 // An address such as 127.0.0.1 has no name, so it is used whole. A domain like
 // bbc.co.uk would otherwise be called "Co", so a short second-to-last part is skipped.
-export const siteName = (tab) => {
+export function siteName(tab) {
   const host = (tab.host ?? "").replace(/^www\./, "");
   if (!host) return "Other";
-  if (/^[\d.]+$/.test(host) || host.includes(":")) return host;
+
+  const isAnAddress = /^[\d.]+$/.test(host) || host.includes(":");
+  if (isAnAddress) return host;
+
   const bits = host.split(".");
-  if (bits.length < 2) return host.replace(/^./, (c) => c.toUpperCase());
-  const second = bits.length - 2;
-  const pick = bits[second].length <= 3 && bits.length > 2 ? bits[second - 1] : bits[second];
-  return pick.replace(/^./, (c) => c.toUpperCase());
-};
+  if (bits.length < 2) return capitalise(host);
+
+  const secondToLast = bits.length - 2;
+  const tooShortToBeAName = bits[secondToLast].length <= 3 && bits.length > 2;
+  return capitalise(tooShortToBeAName ? bits[secondToLast - 1] : bits[secondToLast]);
+}

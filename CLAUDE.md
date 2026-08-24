@@ -13,7 +13,10 @@ learn.
   reader. Common words. One idea per sentence. This applies to comments,
   settings labels, commit messages, and every line the add-on shows a person.
 - **YAGNI and KISS.** Do not build for a need nobody has stated.
-- **One-liners where they still read clearly.** Most helpers are a single line.
+- **Ordinary, readable code.** An early version squeezed everything onto one line
+  and the owner rightly called it out. A one-line helper is fine when it stays
+  obvious at a glance. Anything with a nested ternary, a long chain, or more than
+  one idea gets a named function, named intermediate values, and room to breathe.
 - **No hardcoded lookup tables.** Do not solve sorting with a list of domains or
   keywords. The model decides. Rules the user writes are fine, because the user
   wrote them. This was asked for in strong terms.
