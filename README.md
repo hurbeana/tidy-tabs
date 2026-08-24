@@ -79,6 +79,9 @@ The settings page holds every option. The main ones are:
 - **When it runs.** After a page loads, on a timer, or only when you ask.
 - **How it names groups.** Only your topics, your topics plus new ones, or
   whatever the model thinks of.
+- **How much it leans on groups you already have.** The model is told which
+  groups are open and is asked to prefer them. The smaller models get the same
+  push as a score bonus, which you can turn up or down.
 - **Which tabs it touches.** One window or all of them, pinned tabs or not,
   and a list of tabs to leave alone.
 - **How groups look.** Smallest group size, most groups at once, folded or

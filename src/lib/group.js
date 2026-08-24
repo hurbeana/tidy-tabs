@@ -65,7 +65,9 @@ export const groupWindow = async (windowId, settings) => {
   const tabs = await addText(pickTabs(await api.tabs.query({ windowId }), settings), settings);
   if (!tabs.length) return { groups: 0, tabs: 0 };
   const openGroups = await openGroupNames(windowId, settings);
-  const pairs = buckets(tabs, await decide(tabs, settings, openGroups), settings, openGroups);
+  const names = await decide(tabs, settings, openGroups);
+  if (!names.some(Boolean)) return { groups: 0, tabs: 0, note: "The model could not name a single tab. Open the settings page and press “Get this model ready”." };
+  const pairs = buckets(tabs, names, settings, openGroups);
   const moved = pairs.reduce((n, [, ids]) => n + ids.length, 0);
   if (!hasTabGroups()) { await lineUp(pairs); return { groups: pairs.length, tabs: moved, lined: true }; }
   const known = await existingGroups(windowId);
@@ -79,5 +81,5 @@ export const groupAll = async (settings, windowId) => {
   const ids = settings.scope === "all" || windowId === undefined ? (await api.windows.getAll({ windowTypes: ["normal"] })).map((w) => w.id) : [windowId];
   const results = [];
   for (const id of ids) results.push(await groupWindow(id, settings));
-  return results.reduce((sum, r) => ({ groups: sum.groups + r.groups, tabs: sum.tabs + r.tabs, lined: sum.lined || r.lined }), { groups: 0, tabs: 0, lined: false });
+  return results.reduce((sum, r) => ({ groups: sum.groups + r.groups, tabs: sum.tabs + r.tabs, lined: sum.lined || r.lined, note: sum.note ?? r.note }), { groups: 0, tabs: 0, lined: false });
 };

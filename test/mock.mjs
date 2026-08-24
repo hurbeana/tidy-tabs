@@ -1,7 +1,7 @@
 // A pretend browser, so the grouping logic can be tried out without Chrome or Firefox.
-export const state = { tabs: [], groups: [], settings: {}, nextGroup: 100, pageText: "", allowPageReading: false };
+export const state = { tabs: [], groups: [], settings: {}, nextGroup: 100, pageText: "", allowPageReading: false, reply: null };
 
-export const reset = ({ tabs = [], groups = [], pageText = "", allowPageReading = false } = {}) => Object.assign(state, { pageText, allowPageReading, tabs: tabs.map((t, i) => ({ id: i + 1, index: i, groupId: -1, pinned: false, windowId: 1, status: "complete", ...t })), groups: [...groups], settings: {}, nextGroup: 100 });
+export const reset = ({ tabs = [], groups = [], pageText = "", allowPageReading = false, reply = null } = {}) => Object.assign(state, { pageText, allowPageReading, reply, tabs: tabs.map((t, i) => ({ id: i + 1, index: i, groupId: -1, pinned: false, windowId: 1, status: "complete", ...t })), groups: [...groups], settings: {}, nextGroup: 100 });
 
 export const makeBrowser = () => {
   const browser = {
@@ -19,7 +19,8 @@ export const makeBrowser = () => {
     permissions: { contains: async () => state.allowPageReading, request: async () => true },
     alarms: { create: async () => {}, clear: async () => {}, onAlarm: { addListener: () => {} } },
     action: { setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {} },
-    runtime: { sendMessage: async () => {}, onMessage: { addListener: () => {} }, onInstalled: { addListener: () => {} }, getURL: (p) => `chrome-extension://test/${p}`, openOptionsPage: async () => {} },
+    offscreen: { hasDocument: async () => true, createDocument: async () => {}, closeDocument: async () => {} },
+    runtime: { sendMessage: async (m) => (m?.target === "tidy-offscreen" && state.reply ? { ok: true, result: state.reply(m) } : undefined), onMessage: { addListener: () => {} }, onInstalled: { addListener: () => {} }, getURL: (p) => `chrome-extension://test/${p}`, openOptionsPage: async () => {} },
     commands: { onCommand: { addListener: () => {} } }
   };
   return browser;

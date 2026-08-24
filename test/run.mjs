@@ -141,4 +141,38 @@ await check("without permission it never asks a page for text", async () => {
   assert.match(prompt, /Sony WH-1000XM6 review/);
 });
 
+
+await check("says so when the model cannot name anything", async () => {
+  load({ tabs: TABS });
+  delete globalThis.LanguageModel;
+  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin", fallbackModel: "", fallbackToSite: false });
+  assert.equal(result.groups, 0);
+  assert.match(result.note ?? "", /Get this model ready/);
+});
+
+
+// The smallest model compares meaning, so it is checked with made-up vectors.
+const unit = ([x, y]) => { const n = Math.hypot(x, y); return [x / n, y / n]; };
+const VECTORS = { Reading: unit([1, 0]), News: unit([0.9, 0.44]), tab: unit([0.95, 0.31]) };
+const embedReply = (message) => message.args[0].map((text) => VECTORS[text] ?? VECTORS.tab);
+
+const nearestGroup = async (preferOpen) => {
+  load({ tabs: TABS, groups: [{ id: 7, title: "Reading", color: "blue", windowId: 1 }], reply: embedReply });
+  await groupWindow(1, { ...DEFAULTS, model: "tiny", categories: ["News"], preferOpen });
+  return state.groups.find((g) => state.tabs.some((t) => t.groupId === g.id))?.title;
+};
+
+await check("leans towards a group that is already open", async () => {
+  assert.equal(await nearestGroup(15), "Reading", "the open group should win a close call");
+});
+
+await check("the lean can be turned off", async () => {
+  assert.equal(await nearestGroup(0), "News", "with no lean the closest name wins on its own");
+});
+
+await check("tells the model to prefer an open group", async () => {
+  const prompt = await promptSeen({}, { tabs: TABS, groups: [{ id: 7, title: "Reading", color: "blue", windowId: 1 }] });
+  assert.match(prompt, /Always prefer an open group/);
+});
+
 console.log(`\n${passed} check(s) passed.`);

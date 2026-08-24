@@ -33,6 +33,7 @@ export const DEFAULTS = {
   clusterThreshold: 55,
   batchSize: 12,
   reuseExisting: true,
+  preferOpen: 15,
   rules: [],
   skipList: [],
   showBadge: true,

@@ -17,7 +17,7 @@ $("now").addEventListener("click", async () => {
   $("result").textContent = "Working…";
   const windowId = (await api.windows.getCurrent()).id;
   const { result, error } = await ask({ type: "group-now", windowId });
-  $("result").textContent = error ?? (result?.groups ? `Made ${result.groups} group(s) from ${result.tabs} tab(s).` : "Nothing to group right now.");
+  $("result").textContent = error ?? result?.note ?? (result?.groups ? `Made ${result.groups} group(s) from ${result.tabs} tab(s).` : "Nothing to group right now.");
 });
 
 $("enabled").addEventListener("change", (e) => patchSettings({ enabled: e.target.checked }));

@@ -16,7 +16,7 @@ const textOf = (tab, readMode) => parts(tab, readMode).join(" ").slice(0, 500);
 
 const promptFor = (tabs, settings, openGroups) => [
   "Put each tab in a topic group.",
-  openGroups.length ? `These groups are already open: ${openGroups.join(", ")}. Reuse one of these names whenever the tab belongs there.` : "",
+  openGroups.length ? `These groups are already open: ${openGroups.join(", ")}.\nAlways prefer an open group. Put the tab in one of them whenever it belongs there, even loosely. Only use another name when no open group fits at all.` : "",
   settings.categoryMode !== "free" && settings.categories.length ? `You may also use these topics: ${settings.categories.join(", ")}.` : "",
   settings.categoryMode === "fixed" ? "Use no other names." : "If none of them fits, write your own name of one or two words.",
   'Answer with a JSON array. One item per tab, like {"i": 0, "c": "Group name"}. Write nothing else.',
@@ -51,8 +51,11 @@ const byZeroShot = async (tabs, settings, openGroups) => {
   if (!labels.length) return new Array(tabs.length).fill(null);
   const texts = tabs.map((t) => textOf(t, settings.readMode));
   const results = [].concat(...(await Promise.all(chunks(texts, settings.batchSize).map((c) => run(modelSpec(settings), "zero-shot-classification", [c, labels], { multi_label: false })))));
-  return results.map((r) => (r.scores[0] >= settings.confidence / 100 ? tidyName(r.labels[0]) : null));
+  const lean = leaning(openGroups, settings);
+  return results.map((r) => { const best = r.labels.map((label, i) => ({ label, score: r.scores[i] + lean(label) })).sort((a, b) => b.score - a.score)[0]; return best.score >= settings.confidence / 100 ? tidyName(best.label) : null; });
 };
+
+const leaning = (openGroups, settings) => { const open = new Set((settings.reuseExisting ? openGroups : []).map((name) => name.toLowerCase())); return (label) => (open.has(String(label).toLowerCase()) ? settings.preferOpen / 100 : 0); };
 
 const chunks = (list, size) => Array.from({ length: Math.ceil(list.length / size) }, (_, i) => list.slice(i * size, i * size + size));
 
@@ -69,7 +72,8 @@ const byEmbedding = async (tabs, settings, openGroups) => {
   const vectors = await run(spec, "feature-extraction", [[...labels, ...texts]], { pooling: "mean", normalize: true });
   const labelVectors = vectors.slice(0, labels.length);
   const tabVectors = vectors.slice(labels.length);
-  const out = tabVectors.map((v) => { const scores = labelVectors.map((l) => cosine(v, l)); const best = scores.indexOf(Math.max(...scores)); return best >= 0 && scores[best] >= settings.confidence / 100 ? tidyName(labels[best]) : null; });
+  const lean = leaning(openGroups, settings);
+  const out = tabVectors.map((v) => { const scores = labelVectors.map((l, i) => cosine(v, l) + lean(labels[i])); const best = scores.indexOf(Math.max(...scores)); return best >= 0 && scores[best] >= settings.confidence / 100 ? tidyName(labels[best]) : null; });
   return settings.categoryMode === "fixed" ? out : cluster(out, tabVectors, tabs, settings);
 };
 
