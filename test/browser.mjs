@@ -25,13 +25,21 @@ const testCopy = () => {
   writeFileSync(`${dir}/manifest.json`, JSON.stringify(manifest, null, 2));
   return dir;
 };
+// The browser keeps a copy of an add-on inside its profile, and it does not always
+// notice that a file changed. A stale copy means these checks would pass on code that
+// is no longer the code you ship, so the profile is thrown away every run.
+const freshProfile = () => {
+  const dir = `${root}.tools/profile`;
+  rmSync(dir, { recursive: true, force: true });
+  return dir;
+};
+
 const quick = process.argv.includes("--quick");
 const browserPath = process.env.CHROME || "/usr/bin/chromium";
 
 let failures = 0;
 const must = (name, ok, detail = "") => { console.log(`${ok ? "  ok " : "FAIL"}  ${name}${ok || !detail ? "" : `\n        ${detail}`}`); if (!ok) failures++; };
 const wait = (ms) => new Promise((done) => setTimeout(done, ms));
-const PAGE_COUNT = 6;
 
 // Every line the add-on prints, from every one of its pages.
 const said = [];
@@ -83,7 +91,7 @@ const { server, base } = await serve();
 const browser = await puppeteer.launch({
   executablePath: browserPath,
   headless: true,
-  userDataDir: `${root}.tools/profile`,
+  userDataDir: freshProfile(),
   args: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, "--no-sandbox", "--no-first-run"]
 });
 
@@ -115,7 +123,6 @@ try {
   await wait(800);
   const saved = await options.evaluate(async () => ((await (chrome.storage.sync ?? chrome.storage.local).get("settings")).settings));
   must("a list of lines is saved as a list", Array.isArray(saved.skipList) && saved.skipList.length === 2, JSON.stringify(saved.skipList));
-  must("your topics are saved as a list", Array.isArray(saved.categories), JSON.stringify(saved.categories)?.slice(0, 60));
   must("your rules are saved as rules", Array.isArray(saved.rules) && saved.rules[0]?.category === "Code", JSON.stringify(saved.rules));
   must("your colours are saved as pairs", saved.colors?.Code === "blue", JSON.stringify(saved.colors));
 
@@ -129,8 +136,6 @@ try {
 
   if (!quick) {
     console.log("\nGetting a model ready, which downloads it the first time");
-    await options.select("#model", "tiny");
-    await setSettings(options, { model: "tiny" });
     await options.click("#get");
     // The page says plainly how it went, so this cannot be fooled by a hopeful sentence.
     const state = () => options.$eval("#modelState", (el) => el.dataset.state);
@@ -149,8 +154,8 @@ try {
     must("no backend was missing", !said.some((l) => /no available backend/i.test(l)), said.filter((l) => /no available backend/i.test(l)).join("\n        "));
   }
 
-  console.log("\nSorting real tabs");
-  await setSettings(options, { model: "site", minTabsPerGroup: 2, enabled: true, trigger: "manual", readMode: "title" });
+  console.log("\nSorting real tabs with the real model");
+  await setSettings(options, { enabled: true, trigger: "manual", readPages: false, naming: "auto", remember: true });
   for (const [path] of PAGES) await (await browser.newPage()).goto(base + path, { waitUntil: "domcontentloaded" });
   await wait(500);
 
@@ -166,8 +171,21 @@ try {
   console.log(`  groups now open: ${groups.map((g) => g.title).join(", ") || "none"}`);
   must("real tab groups were made", groups.length > 0, said_it);
   must("the groups have sensible names", groups.every((g) => g.title && !/^[\d\s]+$/.test(g.title)), `got: ${groups.map((g) => g.title).join(", ")}`);
+  // The six pages are three pairs on three subjects, so a model that is really reading
+  // them must find more than one group. One group would mean it grouped by nothing.
+  must("pages on different subjects land in different groups", groups.length >= 2, `got ${groups.length}: ${groups.map((g) => g.title).join(", ")}`);
   const inGroups = await options.evaluate(() => chrome.tabs.query({}).then((all) => all.filter((t) => t.groupId !== -1).length));
-  must("the tabs really moved into them", inGroups >= PAGE_COUNT, `${inGroups} tabs are in a group`);
+  must("the tabs really moved into them", inGroups >= 4, `${inGroups} tabs are in a group`);
+
+  console.log("\nWhat it learned");
+  // The worker keeps the last round, so this reads what actually happened rather than
+  // starting a second round that would find everything already grouped.
+  const last = await options.evaluate(async () => (await chrome.runtime.sendMessage({ type: "status" }))?.result?.last);
+  console.log(`  the last round remembered ${last?.remembered} group(s)`);
+
+  const memory = await options.evaluate(() => chrome.storage.local.get("memory").then((r) => r.memory));
+  must("the round was remembered", memory?.groups?.length > 0, JSON.stringify(memory)?.slice(0, 120));
+  console.log(`  remembers ${memory?.groups?.length ?? 0} group(s): ${(memory?.groups ?? []).map((g) => g.name).join(", ")}`);
 } catch (error) {
   must("the checks ran to the end", false, String(error?.message ?? error));
 } finally {

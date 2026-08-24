@@ -3,7 +3,8 @@ import { api, getSettings, onSettingsChanged } from "./lib/settings.js";
 import { groupAll, hasTabGroups } from "./lib/group.js";
 import { builtinStatus } from "./lib/builtin.js";
 import { kind, needsPermission, forget, probe, openRuntime } from "./lib/runtime.js";
-import { modelSpec } from "./lib/models.js";
+import { forget as forgetMemory } from "./lib/memory.js";
+import { readerSpec, whatIsNeeded } from "./lib/models.js";
 import { shortly } from "./lib/report.js";
 
 const ALARM = "tidy-tabs";
@@ -75,7 +76,7 @@ async function soon(windowId) {
 async function setAlarm() {
   const settings = await getSettings();
   await api.alarms.clear(ALARM);
-  if (settings.enabled && settings.trigger === "timer") {
+  if (settings.enabled && settings.trigger === "interval") {
     await api.alarms.create(ALARM, { periodInMinutes: Math.max(settings.intervalMinutes, 1) });
   }
 }
@@ -110,7 +111,9 @@ async function status() {
     runtime: kind(),
     needsPermission: await needsPermission(),
     hasTabGroups: hasTabGroups(),
-    model: modelSpec(settings),
+    reader: readerSpec(settings),
+    needs: whatIsNeeded(settings),
+    naming: settings.naming,
     busy,
     last
   };
@@ -121,6 +124,7 @@ const ANSWERS = {
   probe,
   forget,
   "open-runtime": openRuntime,
+  "forget-memory": forgetMemory,
   "group-now": (message) => tidy(message.windowId, "manual")
 };
 

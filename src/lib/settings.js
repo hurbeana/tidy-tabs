@@ -3,43 +3,34 @@ export const api = globalThis.browser ?? globalThis.chrome;
 
 const store = api.storage.sync ?? api.storage.local;
 
+// Tidy Tabs works out for itself how alike two tabs have to be, so there is nothing
+// here to tune. What is left is what only you can answer: when to tidy, how much of a
+// page it may read, and what to leave alone.
 export const DEFAULTS = {
   enabled: true,
   trigger: "load",
   intervalMinutes: 15,
   waitSeconds: 3,
+  readPages: true,
+  naming: "auto",
+  remember: true,
+
   scope: "window",
   skipPinned: true,
   regroupExisting: false,
-  minTabsPerGroup: 2,
-  maxGroups: 8,
-  ungroupSingles: false,
-  categoryMode: "hybrid",
-  categories: ["Work", "Code", "Docs", "News", "Shopping", "Social", "Video", "Music", "Email", "Finance", "Travel", "Learning", "AI", "Health", "Games", "Other"],
-  colors: {},
+  maxGroups: 10,
   collapseNewGroups: false,
   sortInGroups: false,
-  readMode: "title",
-  pageTextChars: 600,
-  model: "builtin",
-  fallbackModel: "tiny",
-  fallbackToSite: false,
-  customModelId: "",
-  customModelTask: "generate",
-  dtype: "",
-  device: "",
-  confidence: 45,
-  clusterThreshold: 55,
-  batchSize: 12,
-  reuseExisting: true,
-  preferOpen: 15,
   rules: [],
   skipList: [],
+  colors: {},
+  readerModel: "",
+  namerModel: "",
   showBadge: true,
   debug: false
 };
 
-const LIST_KEYS = ["categories", "skipList"];
+const LIST_KEYS = ["skipList"];
 const MAP_KEYS = ["colors"];
 
 function asList(value) {
@@ -67,9 +58,13 @@ function asNumber(value, fallback) {
 const keysWhereDefaultIs = (type) => Object.keys(DEFAULTS).filter((key) => typeof DEFAULTS[key] === type);
 
 // Settings saved by an older version, or edited by hand, must never break the add-on.
-// Everything is put back into the shape the rest of the code expects.
+// Everything is put back into the shape the rest of the code expects, and anything the
+// add-on no longer uses is quietly left behind.
 export function repair(raw) {
-  const settings = { ...DEFAULTS, ...raw };
+  const settings = { ...DEFAULTS };
+  for (const key of Object.keys(DEFAULTS)) {
+    if (raw && raw[key] !== undefined) settings[key] = raw[key];
+  }
 
   for (const key of LIST_KEYS) settings[key] = asList(settings[key]);
   for (const key of MAP_KEYS) settings[key] = asMap(settings[key]);

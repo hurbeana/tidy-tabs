@@ -26,38 +26,41 @@ function whatWasMade(report) {
   const reused = report.made.filter((group) => group.reused);
   const sentences = [`Made ${count(report.made.length, "group", "groups")} from ${tabs(totalTabs(report.made))}: ${listOf(report.made)}.`];
 
-  if (reused.length) sentences.push(`${count(reused.length, "group was", "groups were")} one you already had open.`);
+  if (reused.length) sentences.push(`${count(reused.length, "group was", "groups were")} one you already had.`);
   if (report.lined) sentences.push("This browser has no tab groups, so matching tabs were parked side by side instead.");
 
   return sentences.join(" ");
 }
 
+// Nothing was grouped, which after reading every tab means they had nothing in common.
 function whyNothingWasMade(report, settings) {
-  if (report.tooSmall.length) {
-    return `Every topic was too small to become a group: ${listOf(report.tooSmall)}. `
-      + `Lower “Fewest tabs a group may have”, which is set to ${settings.minTabsPerGroup}.`;
-  }
+  const looked = `Read ${tabs(report.considered)} and found nothing that belongs together.`;
 
-  return `${report.using ?? "The model"} looked at ${tabs(report.considered)} and named none of them. `
-    + "Open the settings page and press “Get this model ready”.";
+  if (report.considered < 2) return "There is only one tab to sort, and a group needs at least two.";
+  if (!settings.readPages) return `${looked} Turn on “Read a little of a page when its title is not enough” to give it more to go on.`;
+
+  return `${looked} They may simply be about different things. Open a few more tabs on a topic and try again.`;
 }
 
 // Anything worth adding after the main sentence.
 function asides(report, settings) {
   const extra = [];
 
-  if (report.made.length && report.tooSmall.length) {
-    extra.push(`${count(report.tooSmall.length, "topic was", "topics were")} too small to bother with: ${listOf(report.tooSmall)}.`);
+  if (report.made.length && report.loose.length) {
+    extra.push(`${count(report.loose.length, "tab was", "tabs were")} left loose, because nothing else was about the same thing.`);
+  }
+  if (report.read) {
+    extra.push(`${count(report.read, "page was", "pages were")} read to work that out.`);
   }
   if (report.trimmed?.length) {
-    extra.push(`${count(report.trimmed.length, "more topic was", "more topics were")} dropped because you allow at most ${settings.maxGroups} groups: ${listOf(report.trimmed)}.`);
+    extra.push(`${count(report.trimmed.length, "more group was", "more groups were")} dropped because you allow at most ${settings.maxGroups}: ${listOf(report.trimmed)}.`);
   }
 
   return extra;
 }
 
 export function explain(report, settings) {
-  if (report.error) return `The model could not answer: ${report.error}`;
+  if (report.error) return `Tidying could not finish: ${report.error}`;
   if (!report.total) return "There are no tabs in this window.";
 
   if (!report.considered) {

@@ -1,59 +1,42 @@
-// The models you can pick from. All of them run on your own device.
-export const MODELS = {
-  builtin: {
-    label: "Built-in browser model",
-    task: "generate",
-    id: null,
-    mb: 0,
-    blurb: "Uses the model your browser already ships with. Nothing to download in Chrome."
-  },
-  tiny: {
-    label: "Tiny — sorts by meaning",
-    task: "embed",
-    id: "Xenova/all-MiniLM-L6-v2",
-    mb: 25,
-    blurb: "Fast and small. Puts similar pages together and reuses your group names."
-  },
-  small: {
-    label: "Small — picks from your list",
-    task: "zeroshot",
-    id: "Xenova/nli-deberta-v3-xsmall",
-    mb: 70,
-    blurb: "Chooses the best fit from your topic list and your open groups."
-  },
-  medium: {
-    label: "Medium — writes its own names",
-    task: "generate",
-    id: "onnx-community/gemma-3-270m-it-ONNX",
-    mb: 200,
-    blurb: "Invents short group names. A good balance of speed and quality."
-  },
-  large: {
-    label: "Large — best names",
-    task: "generate",
-    id: "onnx-community/Qwen3-0.6B-ONNX",
-    mb: 600,
-    blurb: "Slowest and heaviest, and the best at naming. Needs a decent computer."
-  },
-  custom: {
-    label: "Your own model",
-    task: "generate",
-    id: "",
-    mb: 0,
-    blurb: "Any model from Hugging Face that works with Transformers.js."
-  },
-  site: {
-    label: "No model — group by website",
-    task: "none",
-    id: null,
-    mb: 0,
-    blurb: "No AI at all. Tabs from the same website land together."
-  }
+// The two jobs a model does here, and the models that do them.
+//
+// Reading is the important one. Every tab is turned into a list of numbers that says
+// what it is about, and tabs whose numbers are close are about the same thing. This is
+// what actually groups your tabs, it is small and fast, and it runs on any computer.
+//
+// Naming is a finishing touch. A group already exists by the time a name is needed, so
+// the question is only ever "what should these tabs be called", answered in two words.
+// If no model can answer, the name comes from the words those tabs share.
+
+export const READER = {
+  id: "Xenova/all-MiniLM-L6-v2",
+  task: "feature-extraction",
+  mb: 25,
+  label: "Reads your tabs"
 };
 
-// Your own model takes its name and its job from your settings, not from the list above.
-export function modelSpec(settings, key = settings.model) {
-  const base = MODELS[key] ?? MODELS.builtin;
-  if (key !== "custom") return base;
-  return { ...base, id: settings.customModelId, task: settings.customModelTask ?? "generate" };
+// Chrome and Edge ship a model of their own. Nothing to download, and it writes the
+// best names of the three. Brave and most other browsers do not have it.
+export const BUILTIN_NAMER = { builtin: true, label: "Your browser's own model", mb: 0 };
+
+export const NAMER = {
+  id: "HuggingFaceTB/SmolLM2-360M-Instruct",
+  task: "text-generation",
+  mb: 380,
+  label: "Writes group names"
+};
+
+export function readerSpec(settings) {
+  return settings.readerModel ? { ...READER, id: settings.readerModel } : READER;
+}
+
+export function namerSpec(settings) {
+  return settings.namerModel ? { ...NAMER, id: settings.namerModel } : NAMER;
+}
+
+// What has to be on this computer before a round can run at all.
+export function whatIsNeeded(settings) {
+  const needed = [readerSpec(settings)];
+  if (settings.naming === "download") needed.push(namerSpec(settings));
+  return needed;
 }

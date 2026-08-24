@@ -1,11 +1,21 @@
 // A pretend browser, so the grouping logic can be tried out without Chrome or Firefox.
-export const state = { tabs: [], groups: [], settings: {}, nextGroup: 100, pageText: "", allowPageReading: false, reply: null };
+export const state = { tabs: [], groups: [], settings: {}, saved: {}, nextGroup: 100, pageText: "", allowPageReading: false, reply: null };
 
-export const reset = ({ tabs = [], groups = [], pageText = "", allowPageReading = false, reply = null } = {}) => Object.assign(state, { pageText, allowPageReading, reply, tabs: tabs.map((t, i) => ({ id: i + 1, index: i, groupId: -1, pinned: false, windowId: 1, status: "complete", ...t })), groups: [...groups], settings: {}, nextGroup: 100 });
+export const reset = ({ tabs = [], groups = [], pageText = "", allowPageReading = false, reply = null } = {}) => Object.assign(state, { pageText, allowPageReading, reply, tabs: tabs.map((t, i) => ({ id: i + 1, index: i, groupId: -1, pinned: false, windowId: 1, status: "complete", ...t })), groups: [...groups], settings: {}, saved: {}, nextGroup: 100 });
+
+// A plain key and value store, the way the real one behaves.
+const keyValueStore = () => ({
+  get: async (key) => (key === "settings" ? { settings: state.settings } : (key in state.saved ? { [key]: state.saved[key] } : {})),
+  set: async (pairs) => {
+    if ("settings" in pairs) state.settings = pairs.settings;
+    for (const [key, value] of Object.entries(pairs)) if (key !== "settings") state.saved[key] = value;
+  },
+  remove: async (key) => { delete state.saved[key]; }
+});
 
 export const makeBrowser = () => {
   const browser = {
-    storage: { local: { get: async (k) => (k === "settings" ? { settings: state.settings } : {}), set: async (o) => Object.assign(state, { settings: o.settings }) }, onChanged: { addListener: () => {} } },
+    storage: { local: keyValueStore(), onChanged: { addListener: () => {} } },
     windows: { getAll: async () => [{ id: 1 }], getCurrent: async () => ({ id: 1 }), getLastFocused: async () => ({ id: 1 }) },
     tabs: {
       query: async (q) => state.tabs.filter((t) => (q.windowId === undefined || t.windowId === q.windowId) && (q.groupId === undefined || t.groupId === q.groupId)),
@@ -26,8 +36,32 @@ export const makeBrowser = () => {
   return browser;
 };
 
-// A pretend built-in model that answers with plain JSON.
+// A pretend built-in model.
 export const fakeLanguageModel = (answer) => ({
   availability: async () => "available",
   create: async () => ({ prompt: async (text) => answer(text), destroy: () => {} })
 });
+
+// A pretend model that reads tabs. Every text is given a theme by the test, and texts
+// with the same theme come back close together, exactly as a real model would do.
+export const fakeReader = (themeOf, nameOf = null) => {
+  const themes = [];
+  const indexOf = (theme) => {
+    if (!themes.includes(theme)) themes.push(theme);
+    return themes.indexOf(theme);
+  };
+
+  const vectorFor = (text) => {
+    const spot = indexOf(themeOf(text));
+    const raw = Array.from({ length: 12 }, (_, i) => (i === spot ? 1 : 0));
+    raw[11] = 0.3;
+    const length = Math.hypot(...raw);
+    return raw.map((v) => v / length);
+  };
+
+  return (message) => {
+    if (message.task === "feature-extraction") return message.args[0].map(vectorFor);
+    if (message.task === "text-generation") return nameOf ? nameOf(message.args[0]) : "";
+    return null;
+  };
+};

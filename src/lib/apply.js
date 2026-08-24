@@ -14,10 +14,11 @@ function colorFor(name, chosenColors) {
   return COLORS[total % COLORS.length];
 }
 
-export async function openGroupNames(windowId, settings) {
-  if (!hasTabGroups() || !settings.reuseExisting) return [];
+// The groups open in this window, with the id needed to add tabs to them.
+export async function openGroups(windowId) {
+  if (!hasTabGroups()) return [];
   const groups = await api.tabGroups.query({ windowId });
-  return groups.map((group) => group.title).filter(Boolean);
+  return groups.map((group) => ({ id: group.id, title: group.title ?? "" }));
 }
 
 async function groupsByName(windowId) {
@@ -47,16 +48,6 @@ async function buildOne(name, tabIds, windowId, known, settings) {
   return { id, reused: !isNew };
 }
 
-// Only looks at groups this round built. Groups you made yourself are left alone.
-async function dropSingles(touched, settings) {
-  if (!settings.ungroupSingles) return;
-
-  for (const id of touched) {
-    const tabs = await api.tabs.query({ groupId: id });
-    if (tabs.length && tabs.length < settings.minTabsPerGroup) await api.tabs.ungroup(tabs.map((tab) => tab.id));
-  }
-}
-
 // A browser with no tab groups gets the next best thing: same-topic tabs side by side.
 export async function lineUp(pairs) {
   let index = 0;
@@ -68,13 +59,11 @@ export async function lineUp(pairs) {
 
 export async function applyAll(windowId, pairs, settings) {
   const known = await groupsByName(windowId);
-  const touched = new Set();
   const made = [];
 
   for (const [name, tabIds] of pairs) {
     try {
-      const { id, reused } = await buildOne(name, tabIds, windowId, known, settings);
-      touched.add(id);
+      const { reused } = await buildOne(name, tabIds, windowId, known, settings);
       made.push({ name, count: tabIds.length, reused });
     } catch (error) {
       // One group failing should not stop the rest.
@@ -82,6 +71,5 @@ export async function applyAll(windowId, pairs, settings) {
     }
   }
 
-  await dropSingles(touched, settings);
   return made;
 }

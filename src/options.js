@@ -1,10 +1,9 @@
 // The settings page. Every control carries the name of the setting it changes.
 import { api, DEFAULTS, getSettings, saveSettings } from "./lib/settings.js";
-import { MODELS, modelSpec } from "./lib/models.js";
+import { whatIsNeeded } from "./lib/models.js";
 import { builtinDownload } from "./lib/builtin.js";
 import { warmUp } from "./lib/runtime.js";
 
-const PIPELINE = { generate: "text-generation", zeroshot: "zero-shot-classification", embed: "feature-extraction" };
 const MODEL_HOSTS = ["https://*.huggingface.co/*", "https://*.hf.co/*"];
 const SILENCE_LIMIT = 30000;
 
@@ -75,27 +74,17 @@ async function save() {
 
 // ---- What the page shows -----------------------------------------------------------
 
-function fillModels() {
-  for (const select of [$("model"), $("fallbackModel")]) {
-    for (const [key, model] of Object.entries(MODELS)) {
-      const label = model.mb ? `${model.label} — about ${model.mb} MB to download` : model.label;
-      select.append(Object.assign(document.createElement("option"), { value: key, textContent: label }));
-    }
-  }
-}
-
 // Only show the field the chosen trigger actually uses.
 function showRelevant() {
   $("waitRow").hidden = $("trigger").value !== "load";
-  $("everyRow").hidden = $("trigger").value !== "timer";
-  $("blurb").textContent = MODELS[$("model").value]?.blurb ?? "";
+  $("everyRow").hidden = $("trigger").value !== "interval";
 }
 
 const BUILTIN_WORDS = {
-  available: "The built-in model is ready to use.",
-  downloadable: "The built-in model needs a one-time download. Press the button below.",
-  downloading: "The built-in model is downloading now.",
-  unavailable: "This browser has no built-in model, so pick another one above."
+  available: "Your browser has its own model, and it will write the group names.",
+  downloadable: "Your browser has its own model, which needs a one-time download. Press the button below.",
+  downloading: "Your browser's own model is downloading now.",
+  unavailable: "Your browser has no model of its own, so names will come from the words your tabs share."
 };
 
 const RUNTIME_WORDS = {
@@ -108,11 +97,16 @@ async function describeState() {
   const { result: status } = await ask({ type: "status" });
 
   if (!$("modelState").dataset.state) mark("idle");
-  const parts = [BUILTIN_WORDS[status.builtin], RUNTIME_WORDS[status.runtime] ?? ""];
+  const naming = $("naming").value;
+  const opening = naming === "download"
+    ? `A downloaded model will write the group names. It is about ${status.needs.at(-1)?.mb ?? 0} MB.`
+    : BUILTIN_WORDS[status.builtin];
+
+  const parts = [opening, RUNTIME_WORDS[status.runtime] ?? ""];
   if (status.needsPermission) parts.push(" Firefox needs your permission before it may run a model. Press the button below.");
   if (!status.hasTabGroups) parts.push(" This browser cannot make tab groups, so matching tabs are parked side by side instead.");
 
-  say("modelState", parts.join(""), status.builtin === "available" ? "good" : "");
+  say("modelState", parts.join(""), "");
 
   const mayRead = await api.permissions.contains({ origins: ["<all_urls>"] }).catch(() => false);
   say("permState", mayRead ? "You have given permission to read pages." : "You have not given permission to read pages yet.");
@@ -122,9 +116,7 @@ const size = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB`
 
 // ---- Getting a model ready ---------------------------------------------------------
 
-async function grant(model) {
-  if (model === "builtin" || MODELS[model]?.task === "none") return true;
-
+async function grant() {
   const mayFetch = await api.permissions.request({ origins: MODEL_HOSTS }).catch(() => false);
   if (!mayFetch) {
     say("modelState", "Tidy Tabs needs permission to fetch the model files.", "bad");
@@ -154,36 +146,37 @@ function heard() {
 
 const quiet = () => clearTimeout(stall);
 
-async function getReady(key, settings) {
-  if (key === "builtin") {
-    const state = await builtinDownload((percent) => say("progressLine", `Downloading the built-in model — ${percent}%`));
-    return state === "available" ? "ready" : `Your browser says the built-in model is ${state}.`;
+// Everything the settings need before a round can run: always the model that reads your
+// tabs, and the one that writes names when you asked for a downloaded one.
+async function getReady(settings) {
+  for (const spec of whatIsNeeded(settings)) {
+    say("progressLine", `Getting ready: ${spec.label.toLowerCase()}…`);
+    await warmUp(spec, spec.task);
   }
 
-  const spec = modelSpec(settings, key);
-  if (spec.task === "none") return "This choice uses no model, so there is nothing to fetch.";
-  if (!spec.id) return "That model has no name. Fill one in under Advanced.";
+  // The browser's own model is a bonus, and never a reason to call this a failure.
+  if (settings.naming === "auto") {
+    await builtinDownload((percent) => say("progressLine", `Downloading your browser's own model — ${percent}%`)).catch(() => null);
+  }
 
-  await warmUp({ ...spec, dtype: settings.dtype || undefined, device: settings.device || undefined }, PIPELINE[spec.task]);
   return "ready";
 }
 
 // This page does the work itself. The background worker falls asleep during a long
 // download, which used to leave this page waiting for ever.
 async function onGetReady() {
-  const model = $("model").value;
-  if (!(await grant(model))) return;
+  if (!(await grant())) return;
 
   $("get").setAttribute("aria-busy", "true");
   mark("working");
-  say("modelState", "Getting the model ready. The first time can take a while.");
+  say("modelState", "Getting everything ready. The first time can take a while.");
   say("progressLine", "Waking the hidden page…");
   heard();
 
   try {
-    const result = await getReady(model, await getSettings());
+    const result = await getReady(await getSettings());
     mark(result === "ready" ? "ready" : "failed");
-    say("modelState", result === "ready" ? "The model is ready." : result, "good");
+    say("modelState", result === "ready" ? "Everything is ready." : result, "good");
     say("progressLine", "");
   } catch (error) {
     mark("failed");
@@ -258,6 +251,11 @@ $("drop").addEventListener("click", async () => {
   say("progressLine", "Downloaded models are gone. They will be fetched again when you need them.");
 });
 
+$("forget").addEventListener("click", async () => {
+  await ask({ type: "forget-memory" });
+  say("forgetState", "Forgotten. Your groups will be worked out fresh from now on.");
+});
+
 $("allow").addEventListener("click", async () => {
   await api.permissions.request({ origins: ["<all_urls>"] }).catch(() => false);
   describeState();
@@ -298,7 +296,6 @@ document.addEventListener("input", (event) => {
 
 api.runtime.onMessage.addListener(onProgress);
 
-fillModels();
 getSettings().then((settings) => {
   put(settings);
   showRelevant();

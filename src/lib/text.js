@@ -5,31 +5,19 @@ const MAX_WORDS = 3;
 const ALLOWED = /[^\p{L}\p{N} .&+/-]/gu;
 
 // Trims a name down to something that fits on a tab group.
+// A name cut in the middle of a word reads as a mistake, so whole words are dropped
+// instead. One very long word is cut, because there is nothing else to do with it.
+function trimmedToFit(words) {
+  const kept = [...words];
+  while (kept.length > 1 && kept.join(" ").length > NAME_LIMIT) kept.pop();
+  return kept.join(" ").slice(0, NAME_LIMIT);
+}
+
 export function tidyName(name) {
   const withoutQuotes = String(name ?? "").replace(/["'`]/g, "");
   const words = withoutQuotes.replace(ALLOWED, " ").trim().split(/\s+/);
-  const short = words.slice(0, MAX_WORDS).join(" ").slice(0, NAME_LIMIT);
+  const short = trimmedToFit(words.slice(0, MAX_WORDS));
   return short.replace(/^./, (first) => first.toUpperCase());
-}
-
-// What the model gets to see about one tab.
-//
-// The web address is always included: it costs nothing and it helps a lot. The title
-// is left out only when you asked to read page text instead, and even then it comes
-// back if the page had no text, so no tab is ever described by nothing.
-export function parts(tab, readMode) {
-  const titleWouldBeSkipped = readMode === "content" && tab.text;
-  return [titleWouldBeSkipped ? null : tab.title, tab.host, tab.text].filter(Boolean);
-}
-
-export function describe(tab, index, readMode) {
-  return `${index}. ${parts(tab, readMode).join(" — ")}`;
-}
-
-const COMPARE_LIMIT = 500;
-
-export function textOf(tab, readMode) {
-  return parts(tab, readMode).join(" ").slice(0, COMPARE_LIMIT);
 }
 
 export function chunks(list, size) {

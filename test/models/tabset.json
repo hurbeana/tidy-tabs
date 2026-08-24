@@ -1,0 +1,125 @@
+{
+  "note": "A day of real browsing, in two languages. 'theme' is the answer a person would give, and is what the grouping is scored against.",
+  "tabs": [
+    {
+      "theme": "code",
+      "text": "How to center a div — Stack Overflow — stackoverflow.com/questions/114543/centering-a-div",
+      "host": "stackoverflow.com"
+    },
+    {
+      "theme": "code",
+      "text": "hurbeana/tidy-tabs: AI tab grouper — github.com/hurbeana/tidy-tabs",
+      "host": "github.com"
+    },
+    {
+      "theme": "code",
+      "text": "Array.prototype.map() - JavaScript | MDN — developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map",
+      "host": "developer.mozilla.org"
+    },
+    {
+      "theme": "code",
+      "text": "Compose file reference — docs.docker.com/reference/compose-file",
+      "host": "docs.docker.com"
+    },
+    {
+      "theme": "code",
+      "text": "Why is my regex so slow — Stack Overflow — stackoverflow.com/questions/981124/catastrophic-backtracking",
+      "host": "stackoverflow.com"
+    },
+    {
+      "theme": "news",
+      "text": "Ukraine talks resume in Geneva — BBC News — bbc.co.uk/news/world-europe-1234",
+      "host": "bbc.co.uk"
+    },
+    {
+      "theme": "news",
+      "text": "ECB holds rates steady — Reuters — reuters.com/markets/europe/ecb-holds-rates",
+      "host": "reuters.com"
+    },
+    {
+      "theme": "news",
+      "text": "Bundestag beschliesst neues Klimagesetz — tagesschau.de/inland/klimagesetz-100",
+      "host": "tagesschau.de"
+    },
+    {
+      "theme": "news",
+      "text": "Inflation in der Eurozone faellt auf 2,1 Prozent — handelsblatt.com/politik/konjunktur",
+      "host": "handelsblatt.com"
+    },
+    {
+      "theme": "headphones",
+      "text": "Sony WH-1000XM6 review — theverge.com/reviews/sony-wh-1000xm6",
+      "host": "theverge.com"
+    },
+    {
+      "theme": "headphones",
+      "text": "Noise cancelling Kopfhoerer — amazon.de/s?k=noise+cancelling+kopfhoerer",
+      "host": "amazon.de"
+    },
+    {
+      "theme": "headphones",
+      "text": "Bose QuietComfort Ultra Preisvergleich — geizhals.de/bose-quietcomfort-ultra",
+      "host": "geizhals.de"
+    },
+    {
+      "theme": "headphones",
+      "text": "Best headphones 2026 — rtings.com/headphones/reviews/best/noise-cancelling",
+      "host": "rtings.com"
+    },
+    {
+      "theme": "lisbon",
+      "text": "Cheap flights Vienna to Lisbon — skyscanner.net/transport/flights/vie/lis",
+      "host": "skyscanner.net"
+    },
+    {
+      "theme": "lisbon",
+      "text": "Hotels in Lisbon city centre — booking.com/city/pt/lisbon",
+      "host": "booking.com"
+    },
+    {
+      "theme": "lisbon",
+      "text": "Lisbon 3 day itinerary — tripadvisor.com/ShowTopic-Lisbon-itinerary",
+      "host": "tripadvisor.com"
+    },
+    {
+      "theme": "lisbon",
+      "text": "Wetter Lissabon 14 Tage — wetter.com/portugal/lissabon",
+      "host": "wetter.com"
+    },
+    {
+      "theme": "admin",
+      "text": "Inbox (12) — Gmail — mail.google.com/mail/u/0/#inbox",
+      "host": "mail.google.com"
+    },
+    {
+      "theme": "admin",
+      "text": "Calendar - August 2026 — calendar.google.com/calendar/u/0/r/month",
+      "host": "calendar.google.com"
+    },
+    {
+      "theme": "admin",
+      "text": "(3) LinkedIn feed — linkedin.com/feed",
+      "host": "linkedin.com"
+    },
+    {
+      "theme": "cooking",
+      "text": "Tomaten Risotto Rezept — chefkoch.de/rezepte/1234/Tomaten-Risotto",
+      "host": "chefkoch.de"
+    },
+    {
+      "theme": "cooking",
+      "text": "How long to boil an egg — bbcgoodfood.com/howto/guide/how-boil-egg",
+      "host": "bbcgoodfood.com"
+    },
+    {
+      "theme": "football",
+      "text": "FC Bayern vs Real Madrid live — skysport.de/fussball/champions-league",
+      "host": "skysport.de"
+    },
+    {
+      "theme": "football",
+      "text": "Premier League table — bbc.co.uk/sport/football/tables",
+      "host": "bbc.co.uk"
+    }
+  ]
+}

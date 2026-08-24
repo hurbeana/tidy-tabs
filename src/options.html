@@ -16,34 +16,45 @@
 <article>
   <label>
     <input type="checkbox" role="switch" data-key="enabled">
-    Tidy my tabs on its own
+    Tidy my tabs automatically
   </label>
 
   <label>When
     <select data-key="trigger" id="trigger">
-      <option value="load">After a page finishes loading</option>
-      <option value="timer">Every so often</option>
+      <option value="load">Each time a tab finishes loading</option>
+      <option value="interval">Every so often</option>
       <option value="manual">Only when I ask</option>
     </select>
   </label>
+
   <label id="waitRow">Wait this many seconds first
     <input type="number" min="1" max="30" data-key="waitSeconds">
   </label>
   <label id="everyRow">Minutes between rounds
     <input type="number" min="1" max="720" data-key="intervalMinutes">
   </label>
-  <p class="muted">You can always press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>.</p>
+
+  <label>
+    <input type="checkbox" role="switch" data-key="readPages">
+    Read a little of a page when its title is not enough
+  </label>
+  <p class="muted">Only the few tabs that could not be placed are ever read, and only on this computer.</p>
+  <div class="buttons"><button class="secondary" id="allow">Give permission to read pages</button></div>
+  <p class="muted" id="permState"></p>
 </article>
 
 <article>
-  <label>Which model thinks about your tabs
-    <select data-key="model" id="model"></select>
+  <h2>Naming</h2>
+  <p class="muted">Your tabs are grouped by a small model that reads them. This chooses who writes the names.</p>
+  <label>Group names come from
+    <select data-key="naming" id="naming">
+      <option value="auto">Your browser's own model, or the words your tabs share</option>
+      <option value="download">A model I download — better names, but slow without a graphics card</option>
+    </select>
   </label>
-  <p class="muted" id="blurb"></p>
   <p id="modelState">Checking what your browser can do…</p>
-
   <div class="buttons">
-    <button id="get">Get this model ready</button>
+    <button id="get">Get everything ready</button>
     <button class="secondary" id="checkup">Check my setup</button>
     <button class="secondary outline" id="drop">Delete downloads</button>
   </div>
@@ -51,119 +62,56 @@
   <p class="muted" id="progressLine" aria-live="polite"></p>
 </article>
 
-<article>
-  <label>What the model reads about each tab
-    <select data-key="readMode" id="readMode">
-      <option value="title">The title and the web address</option>
-      <option value="content">The web address and text from the page</option>
-      <option value="both">The title, the web address, and text from the page</option>
-    </select>
-  </label>
-  <label>How it chooses group names
-    <select data-key="categoryMode">
-      <option value="hybrid">Start from my topics, invent a name when nothing fits</option>
-      <option value="fixed">Only use my topics</option>
-      <option value="free">Invent every name</option>
-    </select>
-  </label>
-  <label>Fewest tabs a group may have
-    <input type="number" min="1" max="20" data-key="minTabsPerGroup">
-  </label>
-  <p class="muted">Set this to 1 if Tidy Tabs keeps telling you every topic was too small.</p>
-</article>
-
 <details>
-  <summary>Topics and naming</summary>
-  <label>Your topics, one per line
-    <textarea data-key="categories" data-kind="list" rows="6"></textarea>
-  </label>
-  <label>
-    <input type="checkbox" role="switch" data-key="reuseExisting">
-    Reuse the names of groups you already have open
-  </label>
-  <label>How strongly to prefer a group you already have open, from 0 to 100
-    <input type="number" min="0" max="100" data-key="preferOpen">
-  </label>
-  <label>How sure the model must be, from 0 to 100
-    <input type="number" min="0" max="100" data-key="confidence">
-  </label>
-  <label>How alike two tabs must be to share a new group, from 0 to 100
-    <input type="number" min="0" max="100" data-key="clusterThreshold">
-  </label>
-</details>
-
-<details>
-  <summary>Which tabs to touch</summary>
-  <label>Windows
+  <summary>What to leave alone</summary>
+  <label>Which windows
     <select data-key="scope">
-      <option value="window">Only the window I am using</option>
+      <option value="window">Only the window I am in</option>
       <option value="all">Every window</option>
     </select>
   </label>
   <label><input type="checkbox" role="switch" data-key="skipPinned"> Leave pinned tabs alone</label>
   <label><input type="checkbox" role="switch" data-key="regroupExisting"> Also move tabs that are already in a group</label>
-  <label>Never touch tabs matching these, one per line. Wrap a line in slashes for a pattern.
+  <label>Never touch these, one per line
     <textarea data-key="skipList" data-kind="list" rows="4" placeholder="mybank.com&#10;/localhost:\d+/"></textarea>
   </label>
 </details>
 
 <details>
-  <summary>How the groups look</summary>
-  <label>Most groups to make at once
-    <input type="number" min="1" max="30" data-key="maxGroups">
-  </label>
-  <label><input type="checkbox" role="switch" data-key="collapseNewGroups"> Fold new groups shut</label>
-  <label><input type="checkbox" role="switch" data-key="sortInGroups"> Sort tabs inside a group by title</label>
-  <label><input type="checkbox" role="switch" data-key="ungroupSingles"> Break up groups that end up too small</label>
-  <label>Your own colours, one per line, as <code>Topic = colour</code>
-    <textarea data-key="colors" data-kind="map" rows="3" placeholder="Work = blue&#10;Fun = pink"></textarea>
-  </label>
-  <p class="muted">Colours: grey, blue, red, yellow, green, pink, purple, cyan, orange.</p>
-</details>
-
-<details>
   <summary>Your own rules</summary>
-  <p>A rule always beats the model. Write one per line as <code>what to match = group name</code>.</p>
-  <label>Rules
+  <p class="muted">A rule always wins. Everything a rule does not match is left to the model.</p>
+  <label>One rule per line, as <code>match = group name</code>
     <textarea data-key="rules" data-kind="rules" rows="4" placeholder="github.com = Code&#10;/invoice|receipt/ = Money"></textarea>
   </label>
 </details>
 
 <details>
-  <summary>Reading pages</summary>
-  <p>Reading page text gives better groups. It needs your permission to look at every site, and it takes a moment longer.</p>
-  <label>How many characters to read from each page
-    <input type="number" min="100" max="4000" step="100" data-key="pageTextChars">
+  <summary>How groups look</summary>
+  <label>Most groups to make at once
+    <input type="number" min="1" max="30" data-key="maxGroups">
   </label>
-  <div class="buttons"><button class="secondary" id="allow">Give permission to read pages</button></div>
-  <p class="muted" id="permState"></p>
-  <p class="muted">A page that cannot be read keeps its title, so it still gets a group.</p>
+  <label><input type="checkbox" role="switch" data-key="collapseNewGroups"> Fold new groups shut</label>
+  <label><input type="checkbox" role="switch" data-key="sortInGroups"> Sort tabs inside a group by title</label>
+  <label>Colours for groups you name yourself
+    <textarea data-key="colors" data-kind="map" rows="3" placeholder="Work = blue&#10;Fun = pink"></textarea>
+  </label>
 </details>
 
 <details>
-  <summary>Advanced</summary>
-  <label>If the built-in model is missing, use this instead
-    <select data-key="fallbackModel" id="fallbackModel"></select>
+  <summary>Memory</summary>
+  <p class="muted">Tidy Tabs remembers what your groups were about, so a tab can rejoin one you had last week. It keeps the last 40 groups and about 20 KB. Nothing leaves this computer.</p>
+  <label><input type="checkbox" role="switch" data-key="remember"> Remember my groups</label>
+  <div class="buttons"><button class="secondary outline" id="forget">Forget what you have learned</button></div>
+  <p class="muted" id="forgetState"></p>
+</details>
+
+<details>
+  <summary>For a rainy day</summary>
+  <label>Model that reads your tabs
+    <input type="text" data-key="readerModel" placeholder="Xenova/all-MiniLM-L6-v2">
   </label>
-  <label><input type="checkbox" role="switch" data-key="fallbackToSite"> If every model fails, group by website</label>
-  <label>Tabs per question to the model
-    <input type="number" min="1" max="40" data-key="batchSize">
-  </label>
-  <label>Model file type
-    <select data-key="dtype"><option value="">Choose for me</option><option>q4</option><option>q4f16</option><option>q8</option><option>fp16</option><option>fp32</option></select>
-  </label>
-  <label>Where the model runs
-    <select data-key="device"><option value="">Choose for me</option><option value="webgpu">Graphics card</option><option value="wasm">Processor</option></select>
-  </label>
-  <label>Your own model from Hugging Face
-    <input type="text" data-key="customModelId" placeholder="onnx-community/Qwen3-0.6B-ONNX">
-  </label>
-  <label>What your model does
-    <select data-key="customModelTask">
-      <option value="generate">Writes group names</option>
-      <option value="zeroshot">Picks from my topics</option>
-      <option value="embed">Compares meaning</option>
-    </select>
+  <label>Model that writes the names
+    <input type="text" data-key="namerModel" placeholder="HuggingFaceTB/SmolLM2-360M-Instruct">
   </label>
   <label><input type="checkbox" role="switch" data-key="showBadge"> Show the number of new groups on the toolbar button</label>
   <label><input type="checkbox" role="switch" data-key="debug"> Write notes to the console</label>

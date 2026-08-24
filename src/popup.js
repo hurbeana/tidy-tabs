@@ -1,27 +1,16 @@
 // The small window behind the toolbar button.
 import { api, getSettings, patchSettings } from "./lib/settings.js";
-import { MODELS } from "./lib/models.js";
 
 const $ = (id) => document.getElementById(id);
 const ask = (message) => api.runtime.sendMessage(message);
 
-const BUILTIN_WORDS = {
-  available: "ready",
-  downloadable: "needs a one-time download",
-  downloading: "downloading now",
-  unavailable: "not available in this browser"
-};
-
+// The popup says only what you would want to know at a glance: whether it is ready,
+// and where the names will come from.
 function describeModel(settings, status) {
-  if (settings.model !== "builtin") {
-    return { line: `Using ${MODELS[settings.model]?.label ?? settings.model}.`, needsSetup: false };
-  }
+  if (settings.naming === "download") return { line: "Names are written by a downloaded model.", needsSetup: false };
+  if (status.builtin === "available") return { line: "Names are written by your browser's own model.", needsSetup: false };
 
-  const state = BUILTIN_WORDS[status.builtin] ?? status.builtin;
-  if (status.builtin === "available") return { line: `Built-in model: ${state}.`, needsSetup: false };
-
-  const standIn = MODELS[settings.fallbackModel]?.label ?? "nothing";
-  return { line: `Built-in model: ${state}. Falling back to ${standIn}.`, needsSetup: true };
+  return { line: "Names come from the words your tabs share.", needsSetup: false };
 }
 
 async function show() {

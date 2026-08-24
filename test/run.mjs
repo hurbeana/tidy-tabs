@@ -1,239 +1,235 @@
 // Tries the grouping logic against a pretend browser. Run it with: node test/run.mjs
 import assert from "node:assert";
-import { makeBrowser, reset, state, fakeLanguageModel } from "./mock.mjs";
+import { readFileSync } from "node:fs";
+import { makeBrowser, reset, state, fakeReader } from "./mock.mjs";
 
 globalThis.browser = globalThis.chrome = makeBrowser();
 const { groupWindow } = await import("../src/lib/group.js");
 const { DEFAULTS } = await import("../src/lib/settings.js");
 const { builtinClose } = await import("../src/lib/builtin.js");
+const { readableUrl } = await import("../src/lib/summary.js");
+const { firstWords, sharedWords } = await import("../src/lib/naming.js");
+const { tidyName } = await import("../src/lib/text.js");
+const { whatCountsAsRelated, clusterInto } = await import("../src/lib/cluster.js");
+const { middleOf, remember, recall, forget } = await import("../src/lib/memory.js");
 
 let passed = 0;
-const check = (name, run) => run().then(() => { passed++; console.log(`  ok  ${name}`); }, (e) => { console.error(`FAIL  ${name}\n      ${e.message}`); process.exitCode = 1; });
+const check = (name, run) => run().then(
+  () => { passed++; console.log(`  ok  ${name}`); },
+  (e) => { console.error(`FAIL  ${name}\n      ${e.message}`); process.exitCode = 1; }
+);
 
 const load = (setup) => { builtinClose(); return reset(setup); };
 
-const TABS = [
-  { title: "Pull request #12 · tidy/tabs", url: "https://github.com/tidy/tabs/pull/12" },
-  { title: "Array.prototype.map - JavaScript | MDN", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript" },
-  { title: "Best noise cancelling headphones 2026", url: "https://www.example-shop.com/headphones" },
-  { title: "Sony WH-1000XM6 review", url: "https://www.example-shop.com/sony-review" }
+// The theme of a tab is written into its address, so the pretend model can find it.
+// The last marker wins, because a page summary is added after the address, and reading
+// the page is exactly what should change the model's mind about a tab.
+const themeOf = (text) => [...String(text).matchAll(/theme(\w+)/g)].at(-1)?.[1] ?? "none";
+const tab = (title, theme, extra = {}) => ({ title, url: `https://example.com/theme${theme}/${title.replace(/\W+/g, "-")}`, ...extra });
+
+const CODE_AND_SHOPPING = [
+  tab("Pull request 12", "code"),
+  tab("Array prototype map", "code"),
+  tab("Best headphones 2026", "shop"),
+  tab("Sony WH-1000XM6 review", "shop")
 ];
 
-const answerWith = (map) => (prompt) => JSON.stringify(prompt.split("\n").filter((l) => /^\d+\. /.test(l)).map((l) => ({ i: Number(l.split(".")[0]), c: map[Number(l.split(".")[0])] ?? "Other" })));
+const settings = (extra = {}) => ({ ...DEFAULTS, naming: "auto", ...extra });
 
-await check("groups tabs by what the model says", async () => {
-  load({ tabs: TABS });
-  globalThis.LanguageModel = fakeLanguageModel(answerWith({ 0: "Code", 1: "Code", 2: "Shopping", 3: "Shopping" }));
-  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin" });
-  assert.equal(result.groups, 2, `expected 2 groups, got ${result.groups}`);
-  assert.deepEqual(state.groups.map((g) => g.title).sort(), ["Code", "Shopping"]);
+// ---- Grouping ------------------------------------------------------------------------
+
+await check("puts tabs that belong together into groups", async () => {
+  load({ tabs: CODE_AND_SHOPPING, reply: fakeReader(themeOf) });
+  const report = await groupWindow(1, settings());
+  assert.equal(report.groups, 2, `expected 2 groups, got ${report.groups}: ${report.note}`);
+  assert.equal(report.tabs, 4);
 });
 
-await check("reuses a group that is already open", async () => {
-  load({ tabs: TABS, groups: [{ id: 7, title: "Code", color: "blue", windowId: 1 }] });
-  globalThis.LanguageModel = fakeLanguageModel(answerWith({ 0: "Code", 1: "Code", 2: "Shopping", 3: "Shopping" }));
-  await groupWindow(1, { ...DEFAULTS, model: "builtin" });
-  assert.equal(state.groups.filter((g) => g.title === "Code").length, 1, "the open Code group should be reused");
-  assert.equal(state.tabs.filter((t) => t.groupId === 7).length, 2);
+await check("leaves a lone tab loose rather than making a group of one", async () => {
+  load({ tabs: [...CODE_AND_SHOPPING, tab("A recipe for risotto", "food")], reply: fakeReader(themeOf) });
+  const report = await groupWindow(1, settings());
+  assert.equal(report.groups, 2, `expected 2 groups, got ${report.groups}`);
+  assert.deepEqual(report.loose, ["A recipe for risotto"]);
 });
 
-await check("tells the model which groups are already open", async () => {
-  let seen = "";
-  load({ tabs: TABS, groups: [{ id: 7, title: "Reading", color: "blue", windowId: 1 }] });
-  globalThis.LanguageModel = fakeLanguageModel((prompt) => { seen = prompt; return answerWith({})(prompt); });
-  await groupWindow(1, { ...DEFAULTS, model: "builtin" });
-  assert.match(seen, /already open: Reading/);
+await check("a new tab joins a group that is already open", async () => {
+  load({
+    tabs: [tab("Pull request 12", "code", { groupId: 100 }), tab("Array prototype map", "code", { groupId: 100 }), tab("Another code page", "code")],
+    groups: [{ id: 100, title: "Code", color: "blue", windowId: 1 }],
+    reply: fakeReader(themeOf)
+  });
+  const report = await groupWindow(1, settings());
+  assert.deepEqual(report.made.map((g) => g.name), ["Code"], report.note);
+  assert.equal(state.tabs.filter((t) => t.groupId === 100).length, 3);
 });
 
-await check("your own rule beats the model", async () => {
-  load({ tabs: TABS });
-  globalThis.LanguageModel = fakeLanguageModel(answerWith({ 0: "Wrong", 1: "Wrong", 2: "Wrong", 3: "Wrong" }));
-  await groupWindow(1, { ...DEFAULTS, model: "builtin", minTabsPerGroup: 1, rules: [{ match: "github.com", category: "Mine" }] });
-  assert.ok(state.groups.some((g) => g.title === "Mine"), "the rule should win");
+await check("your own rules win over the model", async () => {
+  load({ tabs: CODE_AND_SHOPPING, reply: fakeReader(themeOf) });
+  const report = await groupWindow(1, settings({ rules: [{ match: "example.com", category: "Mine" }] }));
+  assert.deepEqual(report.made.map((g) => g.name), ["Mine"], report.note);
+  assert.equal(report.tabs, 4);
 });
 
-await check("keeps small groups out of the way", async () => {
-  load({ tabs: TABS });
-  globalThis.LanguageModel = fakeLanguageModel(answerWith({ 0: "A", 1: "B", 2: "C", 3: "D" }));
-  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin", minTabsPerGroup: 2 });
-  assert.equal(result.groups, 0);
+await check("tabs on your skip list are never touched", async () => {
+  load({ tabs: CODE_AND_SHOPPING, reply: fakeReader(themeOf) });
+  const report = await groupWindow(1, settings({ skipList: ["example.com"] }));
+  assert.equal(report.considered, 0);
+  assert.match(report.note, /skip list/i);
 });
 
-await check("leaves skipped tabs alone", async () => {
-  load({ tabs: TABS });
-  globalThis.LanguageModel = fakeLanguageModel(answerWith({ 0: "Code", 1: "Code" }));
-  await groupWindow(1, { ...DEFAULTS, model: "builtin", skipList: ["example-shop.com"] });
-  assert.equal(state.tabs.filter((t) => t.groupId !== -1).length, 2);
+await check("pinned tabs are left alone", async () => {
+  const tabs = CODE_AND_SHOPPING.map((t, i) => (i === 0 ? { ...t, pinned: true } : t));
+  load({ tabs, reply: fakeReader(themeOf) });
+  const report = await groupWindow(1, settings());
+  assert.equal(report.skipped.pinned, 1);
+  assert.equal(state.tabs[0].groupId, -1);
 });
 
-await check("falls back to the website name when no model works", async () => {
-  load({ tabs: TABS });
-  delete globalThis.LanguageModel;
-  await groupWindow(1, { ...DEFAULTS, model: "site", minTabsPerGroup: 2 });
-  assert.ok(state.groups.some((g) => g.title === "Example-shop"), `got ${state.groups.map((g) => g.title)}`);
+await check("makes no more groups than you allow", async () => {
+  const many = ["a", "b", "c", "d"].flatMap((theme) => [tab(`${theme} one`, theme), tab(`${theme} two`, theme)]);
+  load({ tabs: many, reply: fakeReader(themeOf) });
+  const report = await groupWindow(1, settings({ maxGroups: 2 }));
+  assert.equal(report.groups, 2, `expected 2, got ${report.groups}`);
+  assert.equal(report.trimmed.length, 2);
+  assert.match(report.note, /dropped because you allow at most 2/);
 });
 
+// ---- Memory --------------------------------------------------------------------------
 
-// The settings page and the settings file must agree with each other.
-await check("every control on the settings page changes a real setting", async () => {
-  const { readFileSync } = await import("node:fs");
+await check("a tab rejoins a group it only remembers", async () => {
+  load({ tabs: CODE_AND_SHOPPING, reply: fakeReader(themeOf) });
+  await groupWindow(1, settings());
+  const learnt = await recall(DEFAULTS.readerModel || "Xenova/all-MiniLM-L6-v2");
+  assert.equal(learnt.length, 2, `expected 2 remembered groups, got ${learnt.length}`);
+
+  // The same two shopping tabs come back in a window with nothing else in it.
+  const groups = state.groups.map((g) => g.title);
+  load({ tabs: [tab("Best headphones 2026", "shop"), tab("Sony WH-1000XM6 review", "shop")], reply: fakeReader(themeOf) });
+  const again = await groupWindow(1, settings());
+  assert.ok(groups.includes(again.made[0].name), `expected one of ${groups}, got ${again.made[0]?.name}`);
+});
+
+await check("forgetting really forgets", async () => {
+  load({ tabs: CODE_AND_SHOPPING, reply: fakeReader(themeOf) });
+  await groupWindow(1, settings());
+  await forget();
+  assert.deepEqual(await recall("Xenova/all-MiniLM-L6-v2"), []);
+});
+
+await check("a memory written by one model is not read by another", async () => {
+  load({});
+  await remember("model-one", [{ name: "Code", centre: middleOf([[1, 0, 0]]), tabs: 2 }], 1);
+  assert.equal((await recall("model-one")).length, 1);
+  assert.deepEqual(await recall("model-two"), []);
+});
+
+await check("memory keeps only the most recent groups", async () => {
+  load({});
+  const lots = Array.from({ length: 60 }, (_, i) => ({ name: `Group ${i}`, centre: middleOf([[1, 0, 0]]), tabs: 2 }));
+  const kept = await remember("model-one", lots, 1);
+  assert.equal(kept, 40, `expected 40 kept, got ${kept}`);
+});
+
+// ---- Reading pages --------------------------------------------------------------------
+
+await check("pages are read only when titles were not enough", async () => {
+  load({ tabs: CODE_AND_SHOPPING, reply: fakeReader(themeOf), allowPageReading: true, pageText: "" });
+  const report = await groupWindow(1, settings({ readPages: true }));
+  assert.equal(report.read, 0, "nothing was loose, so no page should have been read");
+});
+
+await check("a page summary can rescue tabs the titles could not place", async () => {
+  const loose = [tab("Untitled", "x"), tab("Untitled 2", "y")];
+  load({ tabs: [...CODE_AND_SHOPPING, ...loose], reply: fakeReader(themeOf), allowPageReading: true, pageText: "a page about themerescued things" });
+  const report = await groupWindow(1, settings({ readPages: true }));
+  assert.equal(report.read, 2, `expected 2 pages read, got ${report.read}`);
+  assert.equal(report.groups, 3, `expected 3 groups, got ${report.groups}: ${report.note}`);
+});
+
+// ---- Saying what happened --------------------------------------------------------------
+
+await check("says plainly when there was nothing to sort", async () => {
+  load({ tabs: [], reply: fakeReader(themeOf) });
+  const report = await groupWindow(1, settings());
+  assert.match(report.note, /no tabs in this window/i);
+});
+
+await check("says plainly when nothing belonged together", async () => {
+  load({ tabs: [tab("One", "a"), tab("Two", "b"), tab("Three", "c")], reply: fakeReader(themeOf) });
+  const report = await groupWindow(1, settings({ readPages: false }));
+  assert.equal(report.groups, 0);
+  assert.match(report.note, /nothing that belongs together/i);
+  assert.match(report.note, /Read a little of a page/);
+});
+
+await check("a round that breaks says why", async () => {
+  load({ tabs: CODE_AND_SHOPPING, reply: () => { throw new Error("the model fell over"); } });
+  const report = await groupWindow(1, settings());
+  assert.match(report.note, /could not finish.*fell over/i);
+});
+
+// ---- The parts on their own -------------------------------------------------------------
+
+await check("an address is turned into words worth reading", async () => {
+  assert.equal(readableUrl("https://docs.docker.com/reference/compose-file/"), "docs.docker.com reference compose file");
+  assert.equal(readableUrl("https://www.amazon.de/s?k=noise+cancelling"), "amazon.de s noise cancelling");
+  assert.equal(readableUrl("https://youtube.com/watch?v=dQw4w9WgXcQ"), "youtube.com watch");
+  assert.equal(readableUrl("not a url"), "");
+});
+
+await check("a name is pulled out of whatever a model says", async () => {
+  assert.equal(firstWords("Here is the name: Travel Planning"), "Travel Planning");
+  assert.equal(firstWords("**Web Development**"), "Web Development");
+  assert.equal(firstWords(""), "");
+});
+
+await check("a name is never cut in the middle of a word", async () => {
+  assert.equal(tidyName("Preisvergleich QuietComfort"), "Preisvergleich");
+});
+
+await check("the words a group shares become its name", async () => {
+  const all = ["Lisbon flights", "Lisbon hotels", "Lisbon walks", "Docker compose", "Docker volumes"];
+  assert.equal(sharedWords(all.slice(0, 3), all), "Lisbon");
+});
+
+await check("a two word name reads the way a person wrote it", async () => {
+  const titles = ["Pull request 1 tidy tabs", "Pull request 2 tidy tabs"];
+  assert.equal(sharedWords(titles, titles), "Pull request");
+});
+
+await check("how alike counts as related is worked out from the tabs", async () => {
+  const apart = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 0, 0], [0, 1, 0]];
+  const scale = whatCountsAsRelated(apart);
+  assert.ok(scale.related > scale.ordinary, "related must be above ordinary");
+  assert.ok(scale.clearly >= scale.related, "clearly must be at least related");
+});
+
+await check("clustering keeps things that differ apart", async () => {
+  const vectors = [[1, 0], [1, 0], [0, 1], [0, 1]];
+  const groups = clusterInto(vectors, 0.5).map((g) => g.sort()).sort((a, b) => a[0] - b[0]);
+  assert.deepEqual(groups, [[0, 1], [2, 3]]);
+});
+
+// ---- The settings page -------------------------------------------------------------------
+
+await check("every setting has a control, and every control a setting", async () => {
   const html = readFileSync(new URL("../src/options.html", import.meta.url), "utf8");
-  const keys = [...html.matchAll(/data-key="([^"]+)"/g)].map((m) => m[1]);
-  const missing = keys.filter((k) => !(k in DEFAULTS));
-  assert.deepEqual(missing, [], `the page names settings that do not exist: ${missing}`);
-  const unreachable = Object.keys(DEFAULTS).filter((k) => !keys.includes(k));
-  assert.deepEqual(unreachable, [], `these settings have no control: ${unreachable}`);
+  const onThePage = new Set([...html.matchAll(/data-key="(\w+)"/g)].map((m) => m[1]));
+  const inTheCode = new Set(Object.keys(DEFAULTS));
+
+  const missing = [...inTheCode].filter((key) => !onThePage.has(key));
+  const extra = [...onThePage].filter((key) => !inTheCode.has(key));
+  assert.deepEqual(missing, [], `settings with no control: ${missing}`);
+  assert.deepEqual(extra, [], `controls with no setting: ${extra}`);
 });
 
-
-await check("one new tab may still join a group that is already open", async () => {
-  load({ tabs: TABS, groups: [{ id: 7, title: "Docs", color: "blue", windowId: 1 }] });
-  globalThis.LanguageModel = fakeLanguageModel(answerWith({ 0: "Alone", 1: "Docs", 2: "Shopping", 3: "Shopping" }));
-  await groupWindow(1, { ...DEFAULTS, model: "builtin", minTabsPerGroup: 2 });
-  assert.equal(state.tabs.filter((t) => t.groupId === 7).length, 1, "the MDN tab should join the open Docs group");
-  assert.ok(!state.groups.some((g) => g.title === "Alone"), "a lone tab should not get its own group");
+await check("settings from an older version are repaired, not obeyed", async () => {
+  const { repair } = await import("../src/lib/settings.js");
+  const old = { confidence: 45, categories: "Work\nCode", skipList: "a.com\nb.com", enabled: 1 };
+  const fixed = repair(old);
+  assert.ok(!("confidence" in fixed), "a setting that no longer exists must be dropped");
+  assert.deepEqual(fixed.skipList, ["a.com", "b.com"]);
+  assert.strictEqual(fixed.enabled, true);
 });
 
-await check("leaves groups you made yourself alone", async () => {
-  load({ tabs: TABS, groups: [{ id: 9, title: "Mine", color: "red", windowId: 1 }] });
-  state.tabs[0].groupId = 9;
-  globalThis.LanguageModel = fakeLanguageModel(answerWith({ 1: "Shopping", 2: "Shopping", 3: "Shopping" }));
-  await groupWindow(1, { ...DEFAULTS, model: "builtin", ungroupSingles: true, minTabsPerGroup: 2 });
-  assert.equal(state.tabs[0].groupId, 9, "your own one-tab group must survive");
-});
-
-
-
-const promptSeen = async (settings, setup) => {
-  let seen = "";
-  load(setup);
-  globalThis.LanguageModel = fakeLanguageModel((prompt) => { seen = prompt; return answerWith({})(prompt); });
-  await groupWindow(1, { ...DEFAULTS, model: "builtin", ...settings });
-  return seen;
-};
-
-await check("reading titles only leaves the page alone", async () => {
-  const prompt = await promptSeen({ readMode: "title" }, { tabs: TABS, pageText: "a long article about headphones", allowPageReading: true });
-  assert.match(prompt, /Sony WH-1000XM6 review/);
-  assert.doesNotMatch(prompt, /long article/);
-});
-
-await check("reading the page only leaves the title out", async () => {
-  const prompt = await promptSeen({ readMode: "content" }, { tabs: TABS, pageText: "a long article about headphones", allowPageReading: true });
-  assert.match(prompt, /long article/);
-  assert.doesNotMatch(prompt, /Sony WH-1000XM6 review/);
-});
-
-await check("reading both sends the title and the page", async () => {
-  const prompt = await promptSeen({ readMode: "both" }, { tabs: TABS, pageText: "a long article about headphones", allowPageReading: true });
-  assert.match(prompt, /Sony WH-1000XM6 review/);
-  assert.match(prompt, /long article/);
-});
-
-await check("a page it cannot read keeps its title", async () => {
-  const prompt = await promptSeen({ readMode: "content" }, { tabs: TABS, pageText: "", allowPageReading: true });
-  assert.match(prompt, /Sony WH-1000XM6 review/, "with no page text the title must come back");
-});
-
-await check("without permission it never asks a page for text", async () => {
-  const prompt = await promptSeen({ readMode: "both" }, { tabs: TABS, pageText: "secret page text", allowPageReading: false });
-  assert.doesNotMatch(prompt, /secret page text/);
-  assert.match(prompt, /Sony WH-1000XM6 review/);
-});
-
-
-await check("says so when no model is available at all", async () => {
-  load({ tabs: TABS });
-  delete globalThis.LanguageModel;
-  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin", fallbackModel: "", fallbackToSite: false });
-  assert.equal(result.groups, 0);
-  assert.match(result.note ?? "", /no stand-in is set/);
-});
-
-await check("names the groups it made", async () => {
-  load({ tabs: TABS });
-  globalThis.LanguageModel = fakeLanguageModel(answerWith({ 0: "Code", 1: "Code", 2: "Shopping", 3: "Shopping" }));
-  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin" });
-  assert.match(result.note, /Made 2 groups from 4 tabs/);
-  assert.match(result.note, /Code \(2\)/);
-});
-
-await check("explains that every topic was too small", async () => {
-  load({ tabs: TABS });
-  globalThis.LanguageModel = fakeLanguageModel(answerWith({ 0: "One", 1: "Two", 2: "Three", 3: "Four" }));
-  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin", minTabsPerGroup: 2 });
-  assert.equal(result.groups, 0);
-  assert.match(result.note, /Every topic was too small/);
-  assert.match(result.note, /Fewest tabs a group may have/);
-  assert.match(result.note, /One \(1\)/);
-});
-
-await check("explains that every tab was already in a group", async () => {
-  load({ tabs: TABS, groups: [{ id: 9, title: "Mine", color: "red", windowId: 1 }] });
-  state.tabs.forEach((t) => (t.groupId = 9));
-  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin" });
-  assert.match(result.note, /already sit in a group/);
-  assert.match(result.note, /Also move tabs that are already in a group/);
-});
-
-await check("explains that pinned tabs were left alone", async () => {
-  load({ tabs: TABS });
-  state.tabs.forEach((t) => (t.pinned = true));
-  const result = await groupWindow(1, { ...DEFAULTS, model: "builtin" });
-  assert.match(result.note, /are pinned/);
-});
-
-
-// The smallest model compares meaning, so it is checked with made-up vectors.
-const unit = ([x, y]) => { const n = Math.hypot(x, y); return [x / n, y / n]; };
-const VECTORS = { Reading: unit([1, 0]), News: unit([0.9, 0.44]), tab: unit([0.95, 0.31]) };
-const embedReply = (message) => message.args[0].map((text) => VECTORS[text] ?? VECTORS.tab);
-
-const nearestGroup = async (preferOpen) => {
-  load({ tabs: TABS, groups: [{ id: 7, title: "Reading", color: "blue", windowId: 1 }], reply: embedReply });
-  await groupWindow(1, { ...DEFAULTS, model: "tiny", categories: ["News"], preferOpen });
-  return state.groups.find((g) => state.tabs.some((t) => t.groupId === g.id))?.title;
-};
-
-await check("leans towards a group that is already open", async () => {
-  assert.equal(await nearestGroup(15), "Reading", "the open group should win a close call");
-});
-
-await check("the lean can be turned off", async () => {
-  assert.equal(await nearestGroup(0), "News", "with no lean the closest name wins on its own");
-});
-
-await check("tells the model to prefer an open group", async () => {
-  const prompt = await promptSeen({}, { tabs: TABS, groups: [{ id: 7, title: "Reading", color: "blue", windowId: 1 }] });
-  assert.match(prompt, /Always prefer an open group/);
-});
-
-
-// The website name is the last resort, so it must not produce nonsense.
-const { siteName } = await import("../src/lib/rules.js");
-await check("names a website sensibly", async () => {
-  const name = (host) => siteName({ host, url: `https://${host}/`, title: "" });
-  assert.equal(name("www.example.com"), "Example");
-  assert.equal(name("bbc.co.uk"), "Bbc", "a short second-to-last part must be skipped");
-  assert.equal(name("news.bbc.co.uk"), "Bbc");
-  assert.equal(name("127.0.0.1"), "127.0.0.1", "an address has no name, so it is used whole");
-  assert.equal(name("localhost"), "Localhost");
-  assert.equal(name("git.io"), "Git");
-  assert.equal(name(""), "Other");
-});
-
-
-// Anyone upgrading has settings saved by an older version. Those must not break anything.
-const { repair, DEFAULTS: BASE } = await import("../src/lib/settings.js");
-await check("settings saved by an older version are repaired", async () => {
-  const fixed = repair({ skipList: "example.com\nsecond.test", colors: "Code = blue", rules: "github.com = Code", maxGroups: "", minTabsPerGroup: "3", enabled: 1 });
-  assert.deepEqual(fixed.skipList, ["example.com", "second.test"], "a string becomes a list");
-  assert.deepEqual(fixed.colors, {}, "a string cannot be a set of colours, so it is dropped");
-  assert.deepEqual(fixed.rules, [], "a string cannot be a set of rules, so it is dropped");
-  assert.equal(fixed.maxGroups, BASE.maxGroups, "an empty number falls back");
-  assert.equal(fixed.minTabsPerGroup, 3, "a number written as text is still a number");
-  assert.equal(fixed.enabled, true, "a switch is always true or false");
-  assert.deepEqual(repair({}), BASE, "nothing saved means the starting settings");
-});
-
-console.log(`\n${passed} check(s) passed.`);
+console.log(`\n${passed} checks passed.`);
